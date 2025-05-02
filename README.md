@@ -89,7 +89,7 @@ There are two main tracks that define how data flows within this project: the "K
 
 ## Running the Application
 
-1.  **Activate Virtual Environment**: 
+1.  **Activate Virtual Environment**:
     Before running the application, activate the Python virtual environment. If you haven't created one, you can do so with `python -m venv .venv`.
 
     *   On macOS/Linux:
