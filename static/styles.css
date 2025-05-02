@@ -1,0 +1,1033 @@
+/* Meeting Coach Demo Styles */
+
+/* CSS Variables for Theming */
+:root {
+    /* Light theme (default) */
+    --bg-color: #f8f9fa;
+    --text-color: #212529;
+    --card-bg: #ffffff;
+    --card-border: rgba(0, 0, 0, 0.125);
+    --header-bg: #0d6efd;
+    --header-text: #ffffff;
+    --message-salesperson-bg: #e5e5ea;
+    --message-salesperson-text: #333333;
+    --message-prospect-bg: #0b93f6;
+    --message-prospect-text: #ffffff;
+    --coaching-bg: #f8f9fa;
+    --coaching-border: #198754;
+    --metadata-color: #777777;
+    --input-bg: #ffffff;
+    --input-border: #ced4da;
+    --section-insight-bg: #e3f2fd;
+    --section-opportunity-bg: #e8f5e9;
+    --section-response-bg: #fff3e0;
+    --section-knowledge-bg: #f3e5f5;
+    --section-reasoning-bg: #e8eaf6;
+    --section-excerpts-bg: #e0f2f1;
+    --section-sources-bg: #e0e7ef; /* Changed from pink to light blue-grey */
+    --source-excerpt-bg: #f8f9fa;
+    --source-border: #6c757d;
+    /* Font Configuration */
+    --base-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --base-font-size: 16px;
+}
+
+/* Dark theme */
+body.dark-mode {
+    --bg-color: #121212;
+    --text-color: #e0e0e0;
+    --card-bg: #1e1e1e;
+    --card-border: rgba(255, 255, 255, 0.125);
+    --header-bg: #0a58ca;
+    --header-text: #ffffff;
+    --message-salesperson-bg: #2a2a2a;
+    --message-salesperson-text: #e0e0e0;
+    --message-prospect-bg: #0d47a1;
+    --message-prospect-text: #ffffff;
+    --coaching-bg: #1e1e1e;
+    --coaching-border: #198754;
+    --metadata-color: #aaaaaa;
+    --input-bg: #2a2a2a;
+    --input-border: #444444;
+    --section-insight-bg: #0d47a1;
+    --section-opportunity-bg: #1b5e20;
+    --section-response-bg: #e65100;
+    --section-knowledge-bg: #4a148c;
+    --section-reasoning-bg: #1a237e;
+    --section-excerpts-bg: #004d40;
+    --section-sources-bg: #2c3e50; /* Changed from dark magenta to dark slate blue */
+    --source-excerpt-bg: #2a2a2a;
+    --source-border: #9e9e9e;
+}
+
+html {
+    font-size: var(--base-font-size);
+}
+
+/* Global Styles */
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--base-font-family);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.container-fluid {
+    width: 95%;
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Conversation Container */
+.conversation-container {
+    /* height: 500px; */ /* Removed fixed height */
+    flex-grow: 1; /* Allow body to grow */
+    overflow-y: auto;
+    padding: 1.5rem;
+}
+
+/* Coaching Container */
+.coaching-container {
+    /* height: calc(500px + 44px); */ /* Removed fixed height */
+    flex-grow: 1; /* Allow body to grow */
+    overflow-y: auto;
+    padding: 1.5rem; /* Added padding consistent with conversation */
+}
+
+/* Ensure cards in the main row stretch to equal height */
+.row > .col-md-5 > .card,
+.row > .col-md-7 > .card {
+    height: 80vh; /* Set fixed height for main cards */
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* Message Bubbles */
+.message {
+    margin-bottom: 20px;
+    max-width: 80%;
+    clear: both;
+}
+
+/* System message (Salesperson) - Left, Gray */
+.message-salesperson {
+    float: left;
+}
+
+/* User message (Prospect) - Right, Blue */
+.message-prospect {
+    float: right;
+}
+
+.message-bubble {
+    padding: 12px 15px;
+    border-radius: 18px; /* Fully rounded corners */
+    position: relative;
+    display: inline-block;
+    word-wrap: break-word; /* Ensure long words break */
+    overflow-wrap: break-word; /* Ensure long words break */
+}
+
+/* System message bubble style */
+.message-salesperson .message-bubble {
+    background-color: var(--message-salesperson-bg);
+    color: var(--message-salesperson-text);
+    /* border-bottom-left-radius: 0; Removed for full rounding */
+}
+
+/* User message bubble style */
+.message-prospect .message-bubble {
+    background-color: var(--message-prospect-bg);
+    color: var(--message-prospect-text);
+    /* border-bottom-right-radius: 0; Removed for full rounding */
+}
+
+.message-metadata {
+    font-size: 0.75rem;
+    margin-top: 5px;
+    color: var(--metadata-color);
+    clear: both; /* Ensure metadata doesn't overlap floated bubbles */
+}
+
+/* Align metadata based on message type */
+.message-salesperson .message-metadata {
+    text-align: left;
+}
+
+/* Align metadata for Prospect messages */
+.message-prospect .message-metadata {
+    text-align: right;
+}
+
+/* Highlighted Message */
+.highlighted-message .message-bubble {
+    border: 2px solid #ffc107;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+    }
+}
+
+/* Coaching Advice Styles */
+.coaching-advice {
+    background-color: var(--coaching-bg);
+    /* border-left: 4px solid var(--coaching-border); */ /* Removed as per Task 30 */
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+}
+
+.coaching-advice h4 {
+    font-size: 1.1rem;
+    color: #198754;
+    margin-bottom: 10px;
+}
+
+.coaching-section {
+    margin-bottom: 10px; /* Reduced margin */
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.coaching-section h5 {
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-color);
+    margin-bottom: 5px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+}
+
+.coaching-section h5 i {
+    font-size: 1.3em; /* Increased icon size */
+    margin-right: 10px; /* Adjusted spacing */
+}
+
+.coaching-section p {
+    font-size: 0.95rem;
+    margin-bottom: 0;
+}
+
+/* Colored sections */
+.section-insight {
+    background-color: var(--section-insight-bg);
+    border-left: 3px solid #0d6efd;
+}
+
+.section-opportunity {
+    background-color: var(--section-opportunity-bg);
+    border-left: 3px solid #2e7d32;
+}
+
+.section-suggested-response {
+    background-color: var(--section-response-bg);
+    border-left: 3px solid #ed8a19;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.section-suggested-response:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.section-knowledge {
+    background-color: var(--section-knowledge-bg);
+    border-left: 3px solid #7b1fa2;
+}
+
+/* New sections for JSON structure */
+.section-reasoning {
+    background-color: var(--section-reasoning-bg);
+    border-left: 3px solid #3f51b5;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+
+.section-reasoning:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+/* Ensure background color and hover effect for Relevant Excerpts */
+#coaching-advice-content .section-relevant-excerpts { /* Increased specificity */
+    background-color: var(--section-excerpts-bg); /* Ensure background color */
+    border-left: 3px solid #009688; /* Keep existing border */
+    padding: 10px; /* Ensure padding (inherited from .coaching-section, but explicit here for clarity) */
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease; /* Ensure hover transition */
+}
+
+#coaching-advice-content .section-relevant-excerpts:hover { /* Increased specificity */
+    transform: scale(1.02); /* Ensure hover scale */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Ensure hover shadow */
+}
+
+.section-rag-sources {
+    background-color: var(--section-sources-bg);
+    border-left: 3px solid #e91e63; /* Keep original border color for now */
+    margin-top: 20px; /* Keep margin */
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease; /* Added box-shadow transition */
+}
+
+.section-rag-sources:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.section-used-excerpts {
+    background-color: var(--section-excerpts-bg);
+    border-left: 3px solid #009688;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.section-used-excerpts:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Source item styling */
+.source-item {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed #ccc;
+}
+
+.source-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0; /* Remove bottom margin for the last item */
+    padding-bottom: 0; /* Remove bottom padding for the last item */
+}
+
+.source-header {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.source-link {
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+.source-link:hover {
+    text-decoration: underline;
+}
+
+.source-preview {
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+    color: #495057; /* Adjusted for better contrast on new light bg */
+}
+
+/* Ensure source preview uses metadata color in dark mode */
+.dark-mode .source-preview {
+    color: var(--metadata-color);
+}
+
+.source-excerpt {
+    background-color: var(--source-excerpt-bg);
+    padding: 8px;
+    border-radius: 4px;
+    margin-top: 5px;
+    border-left: 2px solid var(--source-border);
+}
+
+.source-full-text {
+    background-color: var(--source-excerpt-bg);
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Ensure consistent font size in expanded RAG sources */
+.source-full-text h1,
+.source-full-text h2,
+.source-full-text h3,
+.source-full-text h4,
+.source-full-text h5,
+.source-full-text h6,
+.source-full-text p,
+.source-full-text li,
+.source-full-text blockquote,
+.source-full-text pre,
+.source-full-text code,
+.source-full-text strong,
+.source-full-text em,
+.source-full-text table,
+.source-full-text th,
+.source-full-text td,
+.source-full-text div {
+    font-size: 0.95rem !important;
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+    font-weight: normal;
+}
+
+/* Reset any specific heading styles */
+.source-full-text h1,
+.source-full-text h2,
+.source-full-text h3,
+.source-full-text h4,
+.source-full-text h5,
+.source-full-text h6 {
+    margin-top: 0.5rem;
+    padding: 0;
+    border: none;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--text-color);
+}
+
+/* Ensure consistent styling for the entire source-full-text container */
+.source-full-text * {
+    font-family: inherit;
+    max-width: 100%;
+}
+
+.expand-source-btn {
+    margin-top: 5px;
+    font-size: 0.8rem;
+}
+
+/* Chat Input Area */
+.chat-input-container {
+    display: flex;
+    margin-top: 15px;
+}
+
+.chat-input {
+    flex-grow: 1;
+    padding: 10px 15px;
+    border: 1px solid var(--input-border);
+    border-radius: 20px;
+    margin-right: 10px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+    .conversation-container, .coaching-container {
+        height: 400px;
+    }
+}
+
+@media (max-width: 768px) {
+    .message {
+        max-width: 90%;
+    }
+}
+
+/* Animation for New Coaching Advice */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.new-advice {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Button Styles */
+
+/* Typing Indicator Styles */
+.typing-indicator {
+    display: flex; /* Use flexbox to align dots */
+    align-items: center; /* Vertically center dots */
+    padding: 10px 15px; /* Match message padding */
+    margin-bottom: 10px; /* Spacing below indicator */
+    border-radius: 15px; /* Rounded corners like messages */
+    background-color: var(--message-salesperson-bg); /* Match salesperson message color */
+    width: fit-content; /* Make width fit content */
+    max-width: 70%; /* Match message max-width */
+    float: left; /* Align to the left (salesperson side) */
+    clear: both; /* Ensure it doesn't float next to other messages */
+}
+
+.typing-dot {
+    width: 8px;
+    height: 8px;
+    margin: 0 2px; /* Spacing between dots */
+    background-color: #adb5bd; /* Grey color for dots */
+    border-radius: 50%; /* Make them circles */
+    opacity: 0.7;
+    animation: typing-blink 1.4s infinite both; /* Apply animation */
+}
+
+/* Animation delays for each dot */
+.typing-dot:nth-child(1) {
+    animation-delay: 0s;
+}
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+/* Keyframes for the blinking animation */
+@keyframes typing-blink {
+    0% { opacity: 0.2; }
+    20% { opacity: 1; }
+    100% { opacity: 0.2; }
+}
+
+/* Header Logo Styling */
+#header-logo {
+    max-height: 80px; /* Reduced from 120px */
+    margin-right: 20px; /* More space */
+    /* vertical-align: middle; Not needed with flex align-items */
+}
+
+/* Adjust header padding and alignment */
+header.bg-primary {
+    background-color: var(--header-bg) !important;
+    color: var(--header-text);
+    padding: 5px 20px; /* Reduced vertical padding */
+}
+
+/* Add a container for the text elements (will be added in HTML) */
+.header-text-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* Align text to the left */
+}
+
+/* Adjust heading and paragraph margins */
+header.bg-primary h1 {
+    margin-bottom: 0.1rem; /* Reduce space below h1 */
+    font-size: 1.5rem; /* Adjust size */
+    color: white; /* Ensure text color is white */
+}
+
+header.bg-primary p.lead {
+    margin-bottom: 0; /* Remove space below paragraph */
+    font-size: 0.9rem; /* Adjust size */
+    color: white; /* Ensure text color is white */
+    opacity: 0.8; /* Slightly less prominent */
+}
+
+/* Theme Toggle Button Styles */
+.theme-toggle-container {
+    margin-right: 15px;
+}
+
+#theme-toggle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+#theme-toggle:hover {
+    transform: scale(1.1);
+}
+
+/* Card Styles for Dark Mode */
+.card {
+    background-color: var(--card-bg);
+    border-color: var(--card-border);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.card-header, .card-footer {
+    background-color: rgba(0, 0, 0, 0.03);
+    border-color: var(--card-border);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.dark-mode .card-header, .dark-mode .card-footer {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Button Styles for Dark Mode */
+.dark-mode .btn-outline-secondary {
+    color: #adb5bd;
+    border-color: #adb5bd;
+}
+
+.dark-mode .btn-outline-secondary:hover {
+    color: #212529;
+    background-color: #adb5bd;
+}
+
+.dark-mode .btn-outline-primary {
+    color: #6ea8fe;
+    border-color: #6ea8fe;
+}
+
+.dark-mode .btn-outline-primary:hover {
+    color: #212529;
+    background-color: #6ea8fe;
+}
+
+.dark-mode .btn-outline-info {
+    color: #6edff6;
+    border-color: #6edff6;
+}
+
+.dark-mode .btn-outline-info:hover {
+    color: #212529;
+    background-color: #6edff6;
+}
+
+/* Form Control Styles for Dark Mode */
+.dark-mode .form-control {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border-color: var(--input-border);
+}
+
+.dark-mode .form-control:focus {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+
+/* Dark mode placeholder text color */
+body.dark-mode .chat-input::placeholder {
+    color: #bdbdbd; /* Light gray for better visibility */
+    opacity: 1; /* Ensure placeholder is not transparent */
+}
+/* Document Viewer Modal Styles */
+.markdown-content {
+    padding: 10px;
+    font-family: var(--base-font-family);
+    line-height: 1.6;
+}
+
+.markdown-content h1 {
+    font-size: 1.8rem;
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.markdown-content h2 {
+    font-size: 1.5rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.markdown-content h3 {
+    font-size: 1.2rem;
+    margin-top: 1.2rem;
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content p {
+    margin-bottom: 1rem;
+}
+
+.markdown-content ul, .markdown-content ol {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.markdown-content li {
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content blockquote {
+    border-left: 3px solid var(--section-insight-bg);
+    padding-left: 1rem;
+    margin-left: 0;
+    color: var(--metadata-color);
+}
+
+.markdown-content code {
+    background-color: var(--source-excerpt-bg);
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.markdown-content pre {
+    background-color: var(--source-excerpt-bg);
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.markdown-content pre code {
+    background-color: transparent;
+    padding: 0;
+}
+
+/* Dark mode adjustments for the modal */
+.dark-mode .modal-content {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
+
+.dark-mode .modal-header, .dark-mode .modal-footer {
+    border-color: var(--card-border);
+}
+
+/* Styling for highlighted excerpts in the document viewer */
+.highlighted-excerpt {
+    background-color: yellow;
+    color: black; /* Ensure text is readable on yellow background */
+    padding: 0.1em 0.2em; /* Add slight padding */
+    border-radius: 3px; /* Optional: slightly rounded corners */
+    box-shadow: 0 0 5px rgba(255, 255, 0, 0.7); /* Optional: subtle glow */
+}
+
+/* Task 31: Hide Conversation Scrollbar by Default, Show on Hover */
+
+/* Hide scrollbar by default for Firefox and IE */
+#conversation-container {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+/* Hide scrollbar by default for WebKit browsers (Chrome, Safari, Edge) */
+#conversation-container::-webkit-scrollbar {
+    display: none;
+}
+
+/* Show scrollbar on hover for Firefox and IE */
+#conversation-container:hover {
+    scrollbar-width: auto; /* Firefox */
+    -ms-overflow-style: auto; /* Internet Explorer 10+ */
+}
+
+/* Show scrollbar on hover for WebKit browsers */
+#conversation-container:hover::-webkit-scrollbar {
+    display: block;
+    width: 8px; /* Adjust width as needed */
+}
+
+/* Style the scrollbar track on hover for WebKit */
+#conversation-container:hover::-webkit-scrollbar-track {
+    background: var(--card-bg); /* Use card background for track */
+    border-radius: 4px;
+}
+
+/* Style the scrollbar thumb on hover for WebKit */
+#conversation-container:hover::-webkit-scrollbar-thumb {
+    background-color: var(--metadata-color); /* Use metadata color for thumb */
+    border-radius: 4px;
+    border: 2px solid var(--card-bg); /* Create padding effect */
+}
+
+/* Style the scrollbar thumb on hover state for WebKit */
+#conversation-container:hover::-webkit-scrollbar-thumb:hover {
+    background-color: #555; /* Darken thumb on hover */
+}
+
+/* Suggested Questions Bubble Styles */
+.suggested-questions-container {
+    display: flex;
+    flex-wrap: wrap; /* Allow bubbles to wrap to the next line */
+    gap: 8px; /* Spacing between bubbles */
+    padding: 5px 1.5rem; /* Reduced vertical padding, align horizontal padding */
+    justify-content: flex-start; /* Align bubbles to the start */
+}
+
+/* Light mode specific color for suggested questions */
+body:not(.dark-mode) .suggested-question-btn {
+    color: #6c757d; /* Muted gray for light mode */
+}
+
+.suggested-question-btn {
+    background-color: var(--message-salesperson-bg); /* Use salesperson bubble color for now, can adjust */
+    /* color: var(--message-salesperson-text);  <- Color now handled by specific rules */
+    border: none;
+    border-radius: 15px; /* Rounded corners like bubbles */
+    padding: 6px 12px; /* Smaller padding than full messages */
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.suggested-question-btn:hover {
+    background-color: var(--message-prospect-bg); /* Use prospect color on hover for contrast */
+    color: var(--message-prospect-text);
+    transform: translateY(-1px); /* Slight lift effect */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+/* Remove the placeholder text style if suggestions are loaded */
+.suggested-questions-container:not(:has(.suggested-question-btn)) .text-muted {
+    width: 100%; /* Ensure placeholder takes full width */
+}
+.suggested-questions-container:has(.suggested-question-btn) .text-muted {
+    display: none; /* Hide placeholder when buttons are present */
+}
+
+/* --- Coaching Advice Icon Styling --- */
+.coaching-section {
+    display: flex; /* Use Flexbox for layout */
+    align-items: flex-start; /* Align items to the top */
+    margin-bottom: 1.5rem; /* Add space between sections */
+}
+
+.section-icon-container {
+    flex: 0 0 auto; /* Don't grow or shrink */
+    margin-right: 1rem; /* Space between icon and content */
+    margin-top: 0.1em; /* Adjust vertical alignment slightly */
+}
+
+.section-icon-container i {
+    font-size: 2.2em; /* Significantly increase icon size */
+    color: var(--primary-color); /* Use theme color */
+    opacity: 0.8;
+}
+
+/* Specific icon color adjustments if needed */
+.section-reasoning .section-icon-container i {
+    color: var(--info-color); /* Example: Different color for reasoning */
+}
+.section-relevant-excerpts .section-icon-container i, /* Renamed */
+.section-rag-sources .section-icon-container i {
+    color: var(--secondary-color); /* Example: Different color for sources */
+}
+
+
+.section-content-container {
+    flex: 1 1 auto; /* Allow content to grow and shrink */
+}
+
+.section-content-container h5 {
+    margin-bottom: 0.5rem; /* Space below the title */
+    font-weight: bold;
+}
+
+/* Ensure paragraphs and other elements within content have appropriate margins */
+.section-content-container p,
+.section-content-container div {
+    margin-bottom: 0.5rem;
+}
+.section-content-container div:last-child,
+.section-content-container p:last-child {
+    margin-bottom: 0;
+}
+
+/* Style for source items within RAG sources */
+.section-rag-sources .source-item {
+    margin-bottom: 1rem;
+    /* padding-left: 1rem; /* Removed to align content with title */
+    border-left: 3px solid var(--border-color);
+}
+
+.section-rag-sources .source-header {
+    margin-bottom: 0.25rem;
+}
+
+.section-rag-sources .source-preview {
+    font-style: italic;
+    color: var(--text-muted-color);
+    margin-bottom: 0.25rem;
+}
+
+.section-rag-sources .expand-source-btn {
+    margin-bottom: 0.5rem;
+}
+
+.section-rag-sources .source-full-text {
+    background-color: var(--code-bg-color);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    margin-top: 0.5rem;
+    max-height: 300px; /* Limit height */
+    overflow-y: auto; /* Add scroll if needed */
+}
+
+/* Style for relevant excerpts */ /* Renamed */
+.section-relevant-excerpts .source-item { /* Renamed */
+     margin-bottom: 1rem;
+     /* padding-left: 1rem; /* Removed to align content with title */
+     border-left: 3px solid var(--info-color); /* Different border color */
+}
+.section-relevant-excerpts .source-header { /* Renamed */
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+.section-relevant-excerpts .source-excerpt { /* Renamed */
+    background-color: var(--code-bg-color);
+    padding: 0.5rem;
+    border-radius: var(--border-radius);
+    margin-top: 0.25rem;
+}
+.section-relevant-excerpts .source-excerpt p:last-child { /* Renamed */
+    margin-bottom: 0; /* Remove margin from last paragraph inside excerpt */
+}
+
+/* =================================== */
+/* == Cache Manager Modal Styles == */
+/* =================================== */
+
+/* Modal Backdrop/Overlay */
+/* The static modal styles have been removed as we're using Bootstrap's modal system */
+
+/* Modal Content Box */
+.cache-modal-content {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 900px;
+    width: 85%; /* Responsive width */
+    max-height: 85vh; /* Limit height */
+    overflow-y: auto; /* Scroll if content overflows */
+    position: relative; /* For absolute positioning of close button */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Close Button Styling */
+#close-cache-modal {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.8rem; /* Make it a bit larger */
+    font-weight: bold;
+    color: var(--metadata-color);
+    background: none;
+    border: none;
+    cursor: pointer;
+    line-height: 1; /* Prevent extra spacing */
+    padding: 0;
+    transition: color 0.2s ease;
+}
+
+#close-cache-modal:hover {
+    color: var(--text-color); /* Darken on hover */
+}
+
+/* Table Styling within Modal */
+#cache-manager-modal table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+    margin-top: 1rem; /* Add space above table */
+    font-size: 0.9rem; /* Slightly smaller font for table */
+}
+
+#cache-manager-modal th,
+#cache-manager-modal td {
+    border: 1px solid var(--card-border);
+    padding: 0.6rem 0.8rem; /* Adjust padding */
+    text-align: left;
+    vertical-align: top; /* Align content to top */
+}
+
+#cache-manager-modal th {
+    background-color: var(--input-bg); /* Use input background for header */
+    font-weight: 600; /* Slightly bolder */
+}
+
+/* Action Column Specifics */
+#cache-manager-modal td.action-column {
+    width: 100px; /* Fixed width for actions */
+    text-align: center;
+    vertical-align: middle; /* Center buttons vertically */
+}
+
+#cache-manager-modal .delete-cache-btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+/* Form Styling within Modal */
+#cache-manager-modal .cache-form-section {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--card-border);
+}
+
+#cache-manager-modal .cache-form-section h5 {
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+#cache-manager-modal label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+#cache-manager-modal textarea {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 1rem; /* Space below textareas */
+    border: 1px solid var(--input-border);
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border-radius: 4px;
+    min-height: 100px; /* Set a minimum height */
+    font-size: 0.9rem;
+    resize: vertical; /* Allow vertical resize */
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+#cache-manager-modal #add-cache-item-btn {
+    padding: 0.6rem 1.2rem; /* Adjust padding */
+    font-size: 0.9rem;
+    /* Assuming btn and btn-success classes are available from Bootstrap */
+}
+
+/* Dark Mode Specific Adjustments */
+body.dark-mode #cache-manager-modal {
+    background-color: rgba(0, 0, 0, 0.7); /* Darker overlay for dark mode */
+}
+
+/* Ensure close button hover color is appropriate in dark mode */
+body.dark-mode #close-cache-modal:hover {
+    color: #ffffff; /* White hover in dark mode */
+}
+
+/* Ensure table header contrast in dark mode */
+body.dark-mode #cache-manager-modal th {
+    background-color: #2c2c2c; /* Slightly lighter than card bg for contrast */
+}
+
+/* Ensure form button uses correct theme styles */
+body.dark-mode #cache-manager-modal #add-cache-item-btn.btn-success {
+    /* If using Bootstrap, dark mode compatibility might be handled. */
+    /* If not, add specific dark mode styles for the button here. */
+    /* Example: */
+    /* background-color: #198754; */
+    /* border-color: #198754; */
+    /* color: #ffffff; */
+}
+
+/* Suggested Questions Label */
+.suggested-label {
+    display: block; /* Make it a block to take full width */
+    font-size: 0.8em;
+    color: #6c757d; /* Muted color (Bootstrap secondary) */
+    margin-bottom: 0.25rem; /* Small margin below */
+    text-align: center; /* Center the label */
+    padding-left: 1rem; /* Align with button padding */
+    padding-right: 1rem; /* Align with button padding */
+}
+
+/* Dark mode adjustment for suggested label */
+body.dark-mode .suggested-label {
+    color: #adb5bd; /* Lighter muted color for dark mode */
+}
