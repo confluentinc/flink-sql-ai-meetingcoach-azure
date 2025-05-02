@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Coach Demo</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container-fluid">
+        <header class="bg-primary text-white py-3 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <img src="{{ url_for('static', filename='InsightCRM_logo.png') }}" alt="InsightCRM Logo" id="header-logo">
+                    <div class="header-text-container">
+                        <h1>Meeting Coach Demo</h1>
+                        <p class="lead">Real-time AI-powered sales coaching with Flink ML</p>
+                    </div>
+                </div>
+                <div class="theme-toggle-container">
+                    <button id="theme-toggle" class="btn btn-sm btn-outline-light" aria-label="Toggle dark mode">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="row">
+            <!-- Layout Split: Adjust col-md-X classes below for Conversation (left) and Coaching (right) panels. Must sum to 12. -->
+            <!-- Meeting Conversation Panel -->
+            <div class="col-md-5">
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Sales Conversation</h5>
+                        <div>
+                            <button id="reset-btn" class="btn btn-sm btn-outline-secondary">Reset</button>
+                            <button id="auto-play-btn" class="btn btn-sm btn-outline-primary">Auto Play</button>
+                        </div>
+                    </div>
+                    <div class="card-body conversation-container" id="conversation-container">
+                        <!-- Conversation messages will be dynamically added here -->
+                    </div>
+                        <!-- Suggested Questions (Moved) -->
+                        <div class="suggested-questions-container mb-3" id="suggested-questions-container">
+                             <small class="suggested-label">Suggested:</small>
+                             <!-- Suggested question buttons will be dynamically added here -->
+                             <p class="text-muted text-center">Loading suggested questions...</p>
+                        </div>
+                    <div class="card-footer">
+                        <div class="chat-input-container">
+                            <input type="text" id="chat-input" class="chat-input form-control" placeholder="Choose a suggested question above, or type a custom message here...">
+                            <button id="send-btn" class="btn btn-primary">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coaching Advice Panel -->
+            <div class="col-md-7">
+                <div class="card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">AI Meeting Coach Advice</h5>
+                        <div>
+                            <button id="save-cache-btn" class="btn btn-sm btn-outline-secondary" title="Save this response for later use" style="opacity: 0.4;"><i class="fas fa-save"></i></button>
+                            <button id="manage-cache-btn" class="btn btn-sm btn-outline-secondary" title="Manage saved responses" style="opacity: 1;"><i class="fas fa-cog"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-body coaching-container" id="coaching-container">
+                        <div class="initial-message text-center py-5">
+                            <img src="{{ url_for('static', filename='InsightCRM_logo.png') }}" alt="Coach AI Initial Logo" class="mb-3 d-block mx-auto" style="max-height: 160px;">
+                            <h4>AI Meeting Coach</h4>
+                            <p class="text-muted">I'll provide coaching advice when the customer raises objections or concerns.</p>
+                        </div>
+                        <!-- Coaching advice will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Document Viewer Modal -->
+    <div class="modal fade" id="documentViewerModal" tabindex="-1" aria-labelledby="documentViewerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="documentViewerModalLabel">Document Viewer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="documentContent" class="markdown-content"></div>
+                </div>
+                <div class="modal-footer">
+                    <span id="documentPath" class="text-muted me-auto"></span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cache Management Modal -->
+    <div id="cache-manager-modal" class="modal fade" tabindex="-1" aria-labelledby="cacheManagerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable"> <!-- Increased size -->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="cacheManagerModalLabel">Cache Management</h2>
+                    <button type="button" id="close-cache-modal" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Section to display existing items -->
+                    <div class="mb-4">
+                        <h3>Existing Cached Items</h3>
+                        <div class="table-responsive"> <!-- Make table scrollable on small screens -->
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Question</th>
+                                        <th>Response</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cached-items-table-body">
+                                    <!-- Cached items will be loaded here -->
+                                    <tr><td colspan="3" class="text-center text-muted">Loading cached items...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <hr> <!-- Separator -->
+
+                    <!-- Section/form to add new items -->
+                    <div>
+                        <h3>Add New Cached Item</h3>
+                        <form id="add-cache-form">
+                            <div class="mb-3">
+                                <label for="new-cache-question" class="form-label">Question:</label>
+                                <textarea id="new-cache-question" class="form-control" rows="3" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="new-cache-response" class="form-label">Response:</label>
+                                <textarea id="new-cache-response" class="form-control" rows="5" required></textarea>
+                            </div>
+                            <button type="submit" id="add-cache-item-btn" class="btn btn-primary">Add Item</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Bootstrap JS and Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mark.js/8.11.1/mark.min.js" integrity="sha512-5CYoLmNfzwbMGydwCL4jFbVMH/XXZ1/L/Y/6BvjG/aV1xG3/a1fFjB/GfJ2xX/2+t/y97R+v4D04v/v3V/4w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
