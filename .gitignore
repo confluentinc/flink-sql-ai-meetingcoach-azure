@@ -1,0 +1,131 @@
+# PyCharm IDE specific files
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea_modules/
+out/
+atlassian-ide-plugin.xml
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Python virtual environments
+venv/
+env/
+ENV/
+.env
+.venv
+env.bak/
+venv.bak/
+
+# Python bytecode compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Logs
+logs/
+*.log
+log/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Flink specific
+.flink/
+.flink-yarn-tests/
+
+# Azure related
+.azure/
+*.publishsettings
+orleans.codegen.cs
+ServiceFabricBackup/
+*.rptproj.bak
+*.azurePubxml
+*.pubxml
+.deployment
+
+# ML model related
+*.h5
+*.pkl
+*.model
+*.joblib
+*.pt
+*.pth
+models/
+
+# Local data
+data/
+*.csv
+*.json
+*.xlsx
+*.parquet
+
+# Secrets and configurations
+*config.ini
+*.env
+secrets.yaml
+credentials.json
+.rooignore
+.pre-commit-config.yaml
+
+# Terraform
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate
+.terraform/
+terraform/*
+*.tfvars
+*.backup
+*.backup
+*.tfstate.*
+.terraformrc
+terraform.rc
+*terraform.lock*
+
+# OS-specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# UV related files
+*.uv.bak
+*.uvtemp
+*.uvcache
+uv.lock
+UVData/*.bin
+# .pre-commit-config.yaml
+.secrets.baseline
+
+# Ignore standalone Kafka scripts
+app/python-publish-consume-kafka-scripts/
