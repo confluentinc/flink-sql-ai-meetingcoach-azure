@@ -95,19 +95,31 @@ credentials.json
 .rooignore
 .pre-commit-config.yaml
 
-# Terraform
-terraform.tfstate
-terraform.tfstate.backup
+# Terraform - ignore sensitive files
 *.tfstate
-.terraform/
-terraform/*
+*.tfstate.*
 *.tfvars
 *.backup
-*.backup
-*.tfstate.*
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+terraform.lock.hcl
 .terraformrc
 terraform.rc
-*terraform.lock*
+
+# Ignore only secret-related files inside the terraform/ directory
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+terraform/*.backup
+terraform/.terraform/
+
+# Allow non-secret files in terraform/
+!terraform/
+!terraform/*.tf
+!terraform/*.md
+!terraform/*.sh
+!terraform/*.yml
 
 # OS-specific
 .DS_Store
@@ -129,3 +141,4 @@ UVData/*.bin
 
 # Ignore standalone Kafka scripts
 app/python-publish-consume-kafka-scripts/
+terraform/generate_personalized_commands.sh

@@ -33,7 +33,7 @@ confluent flink connection create gpt-4o-mini-connection \
   --api-key "your-api-key"
 
 # Create MongoDB connection
-confluent flink connection create mongodb-connection-2 \
+confluent flink connection create mongodb-connection \
   --type mongodb \
   --cloud azure \
   --region $AZURE_REGION \

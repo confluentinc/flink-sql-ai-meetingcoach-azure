@@ -768,12 +768,12 @@ async function sendMessageToKafka(message) {
 
         if (matchingQuestion) {
             console.log('Found matching cached response for:', message);
-            // Hide typing indicator after a 5 second delay for realism
+            // Hide typing indicator after a 10 second delay for realism
             setTimeout(() => {
                 hideTypingIndicator();
                 // Use the cached response instead of calling the server
                 displayCachedCoachingResponse(matchingQuestion);
-            }, 5000);
+            }, 10000);
             return { status: "cached" };
         }
 
@@ -797,7 +797,7 @@ async function sendMessageToKafka(message) {
             setTimeout(() => {
                 hideTypingIndicator();
                 displayCachedCoachingResponse(result.full_data);
-            }, 5000);
+            }, 10000);
         }
 
         return result;
