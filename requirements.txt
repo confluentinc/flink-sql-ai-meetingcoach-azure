@@ -3,7 +3,7 @@ attrs==25.3.0
 authlib==1.5.2
 avro==1.12.0
 blinker==1.9.0
-cachetools==5.5.2
+cachetools==6.0.0
 certifi==2025.1.31
 cffi==1.17.1
 charset-normalizer==3.4.1
