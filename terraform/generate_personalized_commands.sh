@@ -46,8 +46,8 @@ MONGODB_COLLECTION=$(echo "$TF_OUTPUT" | jq -r '.mongodb_vector_index_config.val
 MONGODB_INDEX_NAME=$(echo "$TF_OUTPUT" | jq -r '.mongodb_vector_index_config.value.index_name')
 
 # Extract MongoDB credentials from .env file
-MONGODB_USERNAME=$(grep "^MONGODB_USERNAME" ../.env | cut -d'=' -f2)
-MONGODB_PASSWORD=$(grep "^MONGODB_PASSWORD" ../.env | cut -d'=' -f2)
+MONGODB_USERNAME=$(grep "^MONGODB_USERNAME" ../.env | cut -d'=' -f2- | tr -d '"')
+MONGODB_PASSWORD=$(grep "^MONGODB_PASSWORD" ../.env | cut -d'=' -f2- | tr -d '"')
 
 # Extract environment and cluster names from Terraform outputs
 ENVIRONMENT_NAME=$(echo "$TF_OUTPUT" | jq -r '.environment_name.value')
@@ -128,8 +128,6 @@ export CONFLUENT_ENV="$ENVIRONMENT_ID"
 export AZURE_OPENAI_RESOURCE="$AZURE_OPENAI_RESOURCE"
 export MONGODB_CLUSTER="$MONGODB_CLUSTER"
 export AZURE_OPENAI_API_KEY="$AZURE_OPENAI_API_KEY"
-
-# For MongoDB connection
 export MONGODB_USERNAME="$MONGODB_USERNAME"
 export MONGODB_PASSWORD="$MONGODB_PASSWORD"
 \`\`\`

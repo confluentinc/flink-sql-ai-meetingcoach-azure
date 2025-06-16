@@ -136,38 +136,38 @@ resource "confluent_api_key" "schema_registry" {
   # depends_on = [confluent_role_binding.app-sr-admin]
 }
 
-# 9. Essential Kafka topics
-resource "confluent_kafka_topic" "knowledge" {
-  topic_name       = "knowledge"
-  partitions_count = 6
+# 9. Essential Kafka topics - COMMENTED OUT - Topics created manually via CREATE TABLE statements
+# resource "confluent_kafka_topic" "knowledge" {
+#   topic_name       = "knowledge"
+#   partitions_count = 6
+#
+#   kafka_cluster {
+#     id = confluent_kafka_cluster.main.id
+#   }
+#
+#   rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
+#
+#   credentials {
+#     key    = confluent_api_key.kafka.id
+#     secret = confluent_api_key.kafka.secret
+#   }
+# }
 
-  kafka_cluster {
-    id = confluent_kafka_cluster.main.id
-  }
-
-  rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
-
-  credentials {
-    key    = confluent_api_key.kafka.id
-    secret = confluent_api_key.kafka.secret
-  }
-}
-
-resource "confluent_kafka_topic" "messages_conversation" {
-  topic_name       = "messages_conversation"
-  partitions_count = 6
-
-  kafka_cluster {
-    id = confluent_kafka_cluster.main.id
-  }
-
-  rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
-
-  credentials {
-    key    = confluent_api_key.kafka.id
-    secret = confluent_api_key.kafka.secret
-  }
-}
+# resource "confluent_kafka_topic" "messages_conversation" {
+#   topic_name       = "messages_conversation"
+#   partitions_count = 6
+#
+#   kafka_cluster {
+#     id = confluent_kafka_cluster.main.id
+#   }
+#
+#   rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
+#
+#   credentials {
+#     key    = confluent_api_key.kafka.id
+#     secret = confluent_api_key.kafka.secret
+#   }
+# }
 
 # 10. Flink compute pool
 resource "confluent_flink_compute_pool" "main" {
@@ -461,86 +461,86 @@ locals {
 #   ]
 # }
 
-# 19. Additional Kafka Topics for Full Pipeline
-resource "confluent_kafka_topic" "knowledge_embeddings_chunked" {
-  topic_name       = "knowledge_embeddings_chunked"
-  partitions_count = 6
+# 19. Additional Kafka Topics for Full Pipeline - COMMENTED OUT - Topics created manually via CREATE TABLE statements
+# resource "confluent_kafka_topic" "knowledge_embeddings_chunked" {
+#   topic_name       = "knowledge_embeddings_chunked"
+#   partitions_count = 6
+#
+#   kafka_cluster {
+#     id = confluent_kafka_cluster.main.id
+#   }
+#
+#   rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
+#
+#   credentials {
+#     key    = confluent_api_key.kafka.id
+#     secret = confluent_api_key.kafka.secret
+#   }
+# }
 
-  kafka_cluster {
-    id = confluent_kafka_cluster.main.id
-  }
+# resource "confluent_kafka_topic" "messages_prospect" {
+#   topic_name       = "messages_prospect"
+#   partitions_count = 6
+#
+#   kafka_cluster {
+#     id = confluent_kafka_cluster.main.id
+#   }
+#
+#   rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
+#
+#   credentials {
+#     key    = confluent_api_key.kafka.id
+#     secret = confluent_api_key.kafka.secret
+#   }
+# }
 
-  rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
+# resource "confluent_kafka_topic" "messages_prospect_embeddings" {
+#   topic_name       = "messages_prospect_embeddings"
+#   partitions_count = 6
+#
+#   kafka_cluster {
+#     id = confluent_kafka_cluster.main.id
+#   }
+#
+#   rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
+#
+#   credentials {
+#     key    = confluent_api_key.kafka.id
+#     secret = confluent_api_key.kafka.secret
+#   }
+# }
 
-  credentials {
-    key    = confluent_api_key.kafka.id
-    secret = confluent_api_key.kafka.secret
-  }
-}
+# resource "confluent_kafka_topic" "messages_prospect_rag_results" {
+#   topic_name       = "messages_prospect_rag_results"
+#   partitions_count = 6
+#
+#   kafka_cluster {
+#     id = confluent_kafka_cluster.main.id
+#   }
+#
+#   rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
+#
+#   credentials {
+#     key    = confluent_api_key.kafka.id
+#     secret = confluent_api_key.kafka.secret
+#   }
+# }
 
-resource "confluent_kafka_topic" "messages_prospect" {
-  topic_name       = "messages_prospect"
-  partitions_count = 6
-
-  kafka_cluster {
-    id = confluent_kafka_cluster.main.id
-  }
-
-  rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
-
-  credentials {
-    key    = confluent_api_key.kafka.id
-    secret = confluent_api_key.kafka.secret
-  }
-}
-
-resource "confluent_kafka_topic" "messages_prospect_embeddings" {
-  topic_name       = "messages_prospect_embeddings"
-  partitions_count = 6
-
-  kafka_cluster {
-    id = confluent_kafka_cluster.main.id
-  }
-
-  rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
-
-  credentials {
-    key    = confluent_api_key.kafka.id
-    secret = confluent_api_key.kafka.secret
-  }
-}
-
-resource "confluent_kafka_topic" "messages_prospect_rag_results" {
-  topic_name       = "messages_prospect_rag_results"
-  partitions_count = 6
-
-  kafka_cluster {
-    id = confluent_kafka_cluster.main.id
-  }
-
-  rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
-
-  credentials {
-    key    = confluent_api_key.kafka.id
-    secret = confluent_api_key.kafka.secret
-  }
-}
-
-resource "confluent_kafka_topic" "messages_prospect_rag_llm_response" {
-  topic_name       = "messages_prospect_rag_llm_response"
-  partitions_count = 6
-
-  kafka_cluster {
-    id = confluent_kafka_cluster.main.id
-  }
-
-  rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
-
-  credentials {
-    key    = confluent_api_key.kafka.id
-    secret = confluent_api_key.kafka.secret
-  }
-}
+# resource "confluent_kafka_topic" "messages_prospect_rag_llm_response" {
+#   topic_name       = "messages_prospect_rag_llm_response"
+#   partitions_count = 6
+#
+#   kafka_cluster {
+#     id = confluent_kafka_cluster.main.id
+#   }
+#
+#   rest_endpoint = confluent_kafka_cluster.main.rest_endpoint
+#
+#   credentials {
+#     key    = confluent_api_key.kafka.id
+#     secret = confluent_api_key.kafka.secret
+#   }
+# }
 
 # 20. MongoDB Sink Connector for Knowledge Embeddings
 resource "confluent_connector" "mongodb_sink" {
@@ -558,27 +558,30 @@ resource "confluent_connector" "mongodb_sink" {
   }
 
   config_nonsensitive = {
-    "connector.class"          = "com.mongodb.kafka.connect.MongoSinkConnector"
-    "tasks.max"               = "1"
-    "topics"                  = "knowledge_embeddings_chunked"
-    "connection.uri"          = var.mongodb_connection_string
-    "connection.username"     = var.mongodb_username
-    "database"                = var.mongodb_database_name
-    "collection"              = var.mongodb_collection_name
-    "key.converter"           = "org.apache.kafka.connect.storage.StringConverter"
-    "value.converter"         = "org.apache.kafka.connect.json.JsonConverter"
-    "value.converter.schemas.enable" = "false"
-    "writemodel.strategy"     = "com.mongodb.kafka.connect.sink.writemodel.strategy.ReplaceOneDefaultStrategy"
-    "document.id.strategy"    = "com.mongodb.kafka.connect.sink.processor.id.strategy.PartialValueStrategy"
-    "document.id.strategy.partial.value.projection.list" = "document_id"
-    "document.id.strategy.partial.value.projection.type" = "AllowList"
-    "transforms"              = "hoist"
-    "transforms.hoist.type"   = "org.apache.kafka.connect.transforms.HoistField$Value"
-    "transforms.hoist.field"  = "payload"
+    "connector.class"                                = "MongoDbAtlasSink"
+    "name"                                          = "mongodb-sink-corrected"
+    "kafka.api.key"                                 = confluent_api_key.kafka.id
+    "kafka.api.secret"                              = confluent_api_key.kafka.secret
+    "topics"                                        = "knowledge_embeddings_chunked"
+    "input.data.format"                             = "AVRO"
+    "connection.host"                               = "aimeetingcoach.bgvpswo.mongodb.net"
+    "connection.user"                               = var.mongodb_username
+    "database"                                      = var.mongodb_database_name
+    "collection"                                    = var.mongodb_collection_name
+    "tasks.max"                                     = "1"
+    "value.converter.schemas.enable"                = "false"
+    "value.converter.decimal.format"                = "BASE64"
+    "max.num.retries"                               = "3"
+    "retries.defer.timeout"                         = "5000"
+    "delete.on.null.values"                         = "false"
+    "writemodel.strategy"                           = "DefaultWriteModelStrategy"
+    "max.batch.size"                                = "0"
+    "use.ordered.bulk.writes"                       = "true"
+    "document.id.strategy"                          = "BsonOidStrategy"
+    "document.id.strategy.overwrite.existing"       = "false"
   }
 
   depends_on = [
-    confluent_kafka_topic.knowledge_embeddings_chunked,
     confluent_role_binding.app-kafka-admin
   ]
 }

@@ -20,9 +20,13 @@ fi
 
 echo "🔄 Loading minimal environment variables from $ENV_FILE..."
 
-# Source the .env file
+# Extract MongoDB credentials first (to avoid sourcing issues with special chars)
+MONGODB_USERNAME_FROM_ENV=$(grep "^MONGODB_USERNAME=" "$ENV_FILE" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+MONGODB_PASSWORD_FROM_ENV=$(grep "^MONGODB_PASSWORD=" "$ENV_FILE" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+
+# Source the .env file (skip MongoDB lines to avoid special character issues)
 set -a  # Automatically export all variables
-source "$ENV_FILE"
+source <(grep -v "^MONGODB_USERNAME=" "$ENV_FILE" | grep -v "^MONGODB_PASSWORD=")
 set +a  # Stop auto-exporting
 
 # ====================================================================
@@ -48,8 +52,8 @@ export TF_VAR_deployment_prefix="${DEPLOYMENT_PREFIX:-flink-ml-demo-$(date +%Y%m
 export TF_VAR_azure_location="${AZURE_REGION:-eastus}"
 export TF_VAR_confluent_region="${AZURE_REGION:-eastus}"
 
-export TF_VAR_mongodb_username="${MONGODB_USERNAME:-demo-user}"
-export TF_VAR_mongodb_password="${MONGODB_PASSWORD:-change-me-in-production}"
+export TF_VAR_mongodb_username="${MONGODB_USERNAME_FROM_ENV:-demo-user}"
+export TF_VAR_mongodb_password="${MONGODB_PASSWORD_FROM_ENV:-change-me-in-production}"
 export TF_VAR_mongodb_connection_string="$MONGODB_CONNECTION_STRING"
 
 # MongoDB Atlas resource configuration
