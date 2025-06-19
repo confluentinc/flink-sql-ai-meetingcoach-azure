@@ -37,6 +37,13 @@ provider "mongodbatlas" {
 
 # Variables are defined in variables.tf
 
+# Local values for computed configurations
+locals {
+  # Extract MongoDB host from connection string for connector configuration
+  # Connection string format: mongodb+srv://cluster.bgvpswo.mongodb.net/database
+  mongodb_host = var.mongodb_connection_host != "" ? var.mongodb_connection_host : regex("mongodb\\+srv://([^/]+)", var.mongodb_connection_string)[0]
+}
+
 # 1. Environment with ESSENTIALS governance (this enables Schema Registry!)
 resource "confluent_environment" "main" {
   display_name = var.environment_name
@@ -51,7 +58,7 @@ resource "confluent_kafka_cluster" "main" {
   display_name = var.kafka_cluster_name
   availability = "SINGLE_ZONE"
   cloud        = "AZURE"
-  region       = "eastus"
+  region       = var.confluent_region
   standard {}  # This enables Schema Registry - NOT basic {}
 
   environment {
@@ -70,7 +77,7 @@ data "confluent_schema_registry_cluster" "main" {
 
 # 4. Service account for app management
 resource "confluent_service_account" "app" {
-  display_name = "app-manager"
+  display_name = "kafka-app-manager"
   description  = "Service account for Kafka and Schema Registry access"
 }
 
@@ -81,12 +88,12 @@ resource "confluent_role_binding" "app-kafka-admin" {
   crn_pattern = confluent_kafka_cluster.main.rbac_crn
 }
 
-# 6. Schema Registry admin role - Skip for now, direct API key creation works
-# resource "confluent_role_binding" "app-sr-admin" {
-#   principal   = "User:${confluent_service_account.app.id}"
-#   role_name   = "DeveloperWrite"
-#   crn_pattern = data.confluent_schema_registry_cluster.main.resource_name
-# }
+# 6. Schema Registry admin role
+resource "confluent_role_binding" "app-env-admin" {
+  principal   = "User:${confluent_service_account.app.id}"
+  role_name   = "EnvironmentAdmin"
+  crn_pattern = confluent_environment.main.resource_name
+}
 
 # 7. Kafka API key
 resource "confluent_api_key" "kafka" {
@@ -171,9 +178,9 @@ resource "confluent_api_key" "schema_registry" {
 
 # 10. Flink compute pool
 resource "confluent_flink_compute_pool" "main" {
-  display_name = "flink-demo-pool"
+  display_name = var.flink_compute_pool_name
   cloud        = "AZURE"
-  region       = "eastus"
+  region       = var.confluent_region
   max_cfu      = 20
 
   environment {
@@ -183,7 +190,7 @@ resource "confluent_flink_compute_pool" "main" {
 
 # 10a. Flink service account for running SQL statements
 resource "confluent_service_account" "flink" {
-  display_name = "flink-sql-runner"
+  display_name = "flink-statement-executor"
   description  = "Service account for running Flink SQL statements"
 }
 
@@ -201,6 +208,7 @@ resource "confluent_role_binding" "flink-env-admin" {
   crn_pattern = confluent_environment.main.resource_name
 }
 
+
 # 11. Azure Resource Group
 resource "azurerm_resource_group" "main" {
   name     = "${replace(var.deployment_prefix, "-", "_")}_rg"
@@ -215,7 +223,7 @@ resource "azurerm_cognitive_account" "openai" {
   kind                = "OpenAI"
   sku_name            = "S0"
 
-  custom_subdomain_name = "${replace(var.deployment_prefix, "_", "-")}-openai"
+  custom_subdomain_name = replace(var.deployment_prefix, "_", "-")
 }
 
 # 13. OpenAI Embedding Model
@@ -374,6 +382,16 @@ output "azure_openai_api_key" {
   sensitive = true
 }
 
+output "azure_openai_embedding_endpoint" {
+  description = "Full Azure OpenAI embedding endpoint URL"
+  value = "${azurerm_cognitive_account.openai.endpoint}openai/deployments/${azurerm_cognitive_deployment.embedding.name}/embeddings?api-version=2023-05-15"
+}
+
+output "azure_openai_gpt4_endpoint" {
+  description = "Full Azure OpenAI GPT-4 chat completions endpoint URL"
+  value = "${azurerm_cognitive_account.openai.endpoint}openai/deployments/${azurerm_cognitive_deployment.gpt4.name}/chat/completions?api-version=2024-02-01"
+}
+
 output "azure_storage_account_name" {
   value = azurerm_storage_account.main.name
 }
@@ -383,39 +401,33 @@ output "azure_storage_connection_string" {
   sensitive = true
 }
 
-# 18. MongoDB Atlas Resources
-#
-# IMPORTANT: Before running terraform apply, create the collection manually:
-# 1. Go to MongoDB Atlas UI -> Your Cluster -> Browse Collections
-# 2. Create database: knowledge_db
-# 3. Create collection: knowledge_embeddings
-# 4. Insert sample document: {"text": "sample", "embedding": [0.1, 0.2, ...], "created_at": new Date()}
-# 5. Then run: terraform apply -target=mongodbatlas_search_index.vector_search
-
-# MongoDB Atlas Vector Search Index - Using working API keys with full project access
-resource "mongodbatlas_search_index" "vector_search" {
-  project_id      = var.mongodbatlas_project_id
-  cluster_name    = var.mongodb_cluster_name
-  collection_name = var.mongodb_collection_name
-  database        = var.mongodb_database_name
-  name            = var.mongodb_index_name
-  type            = "vectorSearch"
-
-  fields = <<-EOF
-[{
-      "type": "vector",
-      "path": "${var.mongodb_embedding_column}",
-      "numDimensions": 1536,
-      "similarity": "cosine"
-}]
-EOF
+# 18. MongoDB Atlas Resources - Using existing free tier cluster
+# Reference existing MongoDB Atlas cluster (created manually in UI)
+data "mongodbatlas_cluster" "existing" {
+  project_id = var.mongodbatlas_project_id
+  name       = var.mongodb_cluster_name  # "aimeetingcoach" - your existing cluster
 }
 
-locals {
-  # Use variables for reproducible deployments
-  mongodb_cluster_name = var.mongodb_cluster_name
-  mongodb_connection_string = var.mongodb_connection_string
-}
+# MongoDB vector search index - commented out as it already exists
+# resource "mongodbatlas_search_index" "vector_search" {
+#   project_id      = var.mongodbatlas_project_id
+#   cluster_name    = data.mongodbatlas_cluster.existing.name
+#   collection_name = var.mongodb_collection_name
+#   database        = var.mongodb_database_name
+#   name            = var.mongodb_index_name
+#   type            = "vectorSearch"
+
+#   fields = <<-EOF
+# [{
+#       "type": "vector",
+#       "path": "${var.mongodb_embedding_column}",
+#       "numDimensions": 1536,
+#       "similarity": "cosine"
+# }]
+# EOF
+# }
+
+# Removed locals - now using actual MongoDB Atlas resources
 
 # Database user for the application - temporarily commented for debugging
 # resource "mongodbatlas_database_user" "main" {
@@ -542,9 +554,8 @@ locals {
 #   }
 # }
 
-# 20. MongoDB Sink Connector for Knowledge Embeddings
+# 20. MongoDB Sink Connector for Knowledge Embeddings - Using existing cluster
 resource "confluent_connector" "mongodb_sink" {
-
   environment {
     id = confluent_environment.main.id
   }
@@ -559,12 +570,12 @@ resource "confluent_connector" "mongodb_sink" {
 
   config_nonsensitive = {
     "connector.class"                                = "MongoDbAtlasSink"
-    "name"                                          = "mongodb-sink-corrected"
+    "name"                                          = "mongodb-sink-eastus2"
     "kafka.api.key"                                 = confluent_api_key.kafka.id
     "kafka.api.secret"                              = confluent_api_key.kafka.secret
     "topics"                                        = "knowledge_embeddings_chunked"
     "input.data.format"                             = "AVRO"
-    "connection.host"                               = "aimeetingcoach.bgvpswo.mongodb.net"
+    "connection.host"                               = local.mongodb_host
     "connection.user"                               = var.mongodb_username
     "database"                                      = var.mongodb_database_name
     "collection"                                    = var.mongodb_collection_name
@@ -589,19 +600,19 @@ resource "confluent_connector" "mongodb_sink" {
 # MongoDB Atlas outputs - using manual configuration
 output "mongodb_connection_string" {
   description = "MongoDB Atlas connection string"
-  value       = local.mongodb_connection_string
+  value       = replace(data.mongodbatlas_cluster.existing.connection_strings[0].standard_srv, "mongodb+srv://", "mongodb+srv://${var.mongodb_username}:${var.mongodb_password}@")
   sensitive   = true
 }
 
 output "mongodb_cluster_name" {
   description = "MongoDB Atlas cluster name"
-  value       = local.mongodb_cluster_name
+  value       = data.mongodbatlas_cluster.existing.name
 }
 
 output "mongodb_vector_index_config" {
   description = "MongoDB Atlas Vector Search Index configuration for manual creation"
   value = {
-    cluster_name    = var.mongodb_cluster_name
+    cluster_name    = data.mongodbatlas_cluster.existing.name
     database        = var.mongodb_database_name
     collection      = var.mongodb_collection_name
     index_name      = var.mongodb_index_name
@@ -624,15 +635,16 @@ output "flink_compute_pool_id" {
   value = confluent_flink_compute_pool.main.id
 }
 
-output "mongodb_vector_search_index_id" {
-  description = "MongoDB Atlas Vector Search Index ID"
-  value = mongodbatlas_search_index.vector_search.id
-}
+# MongoDB vector search index outputs - commented out as index already exists
+# output "mongodb_vector_search_index_id" {
+#   description = "MongoDB Atlas Vector Search Index ID"
+#   value = mongodbatlas_search_index.vector_search.id
+# }
 
-output "mongodb_vector_search_index_status" {
-  description = "MongoDB Atlas Vector Search Index status"
-  value = mongodbatlas_search_index.vector_search.status
-}
+# output "mongodb_vector_search_index_status" {
+#   description = "MongoDB Atlas Vector Search Index status"
+#   value = mongodbatlas_search_index.vector_search.status
+# }
 
 output "flink_service_account_id" {
   value = confluent_service_account.flink.id

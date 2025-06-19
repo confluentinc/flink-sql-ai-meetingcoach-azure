@@ -71,13 +71,13 @@ variable "mongodbatlas_project_id" {
 variable "deployment_prefix" {
   description = "Unique prefix for all resources to avoid naming conflicts"
   type        = string
-  default     = "flink-ml-demo"
+  default     = "flink-ai-demo"
 }
 
 variable "azure_location" {
   description = "Azure region for all resources"
   type        = string
-  default     = "eastus"
+  default     = "eastus2"
 }
 
 # Mapping from Azure regions to MongoDB Atlas regions
@@ -99,7 +99,7 @@ locals {
 variable "confluent_region" {
   description = "Confluent Cloud region (should match Azure region)"
   type        = string
-  default     = "eastus"
+  default     = "eastus2"
 }
 
 # ====================================================================
@@ -110,19 +110,19 @@ variable "confluent_region" {
 variable "environment_name" {
   description = "Confluent Environment name"
   type        = string
-  default     = "flink-ml-demo"
+  default     = "flink-ai-demo"
 }
 
 variable "kafka_cluster_name" {
   description = "Confluent Kafka Cluster name"
   type        = string
-  default     = "demo-cluster"
+  default     = "meetingcoach"
 }
 
 variable "flink_compute_pool_name" {
   description = "Confluent Flink Compute Pool name"
   type        = string
-  default     = "meeting-coach-flink"
+  default     = "flink-ai-computepool"
 }
 
 # Azure resources
@@ -161,6 +161,12 @@ variable "mongodb_connection_string" {
   description = "MongoDB Atlas connection string (e.g., mongodb+srv://cluster.xxx.mongodb.net)"
   type        = string
   sensitive   = true
+}
+
+variable "mongodb_connection_host" {
+  description = "MongoDB Atlas connection host (extracted from connection string)"
+  type        = string
+  default     = ""
 }
 
 variable "mongodb_username" {

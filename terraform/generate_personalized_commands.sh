@@ -9,13 +9,15 @@
 
 set -e
 
-echo "🚀 Generating Personalized Commands for Flink ML Demo"
+echo "🚀 Generating Personalized Commands for Flink ML Demo (Regional Environment)"
 echo "======================================================="
 
 # Check if terraform output is available
 if ! terraform output environment_id > /dev/null 2>&1; then
-    echo "❌ Error: Terraform outputs not available. Please run 'terraform apply' first."
-    exit 1
+    echo "⚠️  Warning: Some Terraform outputs not available. Generating with available resources..."
+    PARTIAL_MODE=true
+else
+    PARTIAL_MODE=false
 fi
 
 # =============================================================================
@@ -27,31 +29,72 @@ echo "📊 Extracting infrastructure variables..."
 # Get terraform outputs
 TF_OUTPUT=$(terraform output -json)
 
-# Extract Confluent variables
+# Extract Confluent variables (fail if terraform outputs not available)
 ENVIRONMENT_ID=$(echo "$TF_OUTPUT" | jq -r '.environment_id.value')
 KAFKA_CLUSTER_ID=$(echo "$TF_OUTPUT" | jq -r '.kafka_cluster_id.value')
 FLINK_COMPUTE_POOL_ID=$(echo "$TF_OUTPUT" | jq -r '.flink_compute_pool_id.value')
 SCHEMA_REGISTRY_ID=$(echo "$TF_OUTPUT" | jq -r '.schema_registry_id.value')
 
-# Extract Azure variables
+# Validate that required outputs are available
+if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" = "null" ]; then
+    echo "❌ Error: Terraform outputs not available. Please run 'terraform apply' first."
+    exit 1
+fi
+
+# Extract Azure variables from terraform outputs (required)
 AZURE_OPENAI_ENDPOINT=$(echo "$TF_OUTPUT" | jq -r '.azure_openai_endpoint.value')
-AZURE_OPENAI_API_KEY=$(echo "$TF_OUTPUT" | jq -r '.azure_openai_api_key.value')
+AZURE_OPENAI_EMBEDDING_ENDPOINT=$(echo "$TF_OUTPUT" | jq -r '.azure_openai_embedding_endpoint.value')
+AZURE_OPENAI_GPT4_ENDPOINT=$(echo "$TF_OUTPUT" | jq -r '.azure_openai_gpt4_endpoint.value')
 AZURE_STORAGE_ACCOUNT=$(echo "$TF_OUTPUT" | jq -r '.azure_storage_account_name.value')
 
-# Extract MongoDB variables
-MONGODB_CONNECTION_STRING=$(echo "$TF_OUTPUT" | jq -r '.mongodb_connection_string.value')
-MONGODB_CLUSTER_NAME=$(echo "$TF_OUTPUT" | jq -r '.mongodb_cluster_name.value')
-MONGODB_DATABASE=$(echo "$TF_OUTPUT" | jq -r '.mongodb_vector_index_config.value.database')
-MONGODB_COLLECTION=$(echo "$TF_OUTPUT" | jq -r '.mongodb_vector_index_config.value.collection')
-MONGODB_INDEX_NAME=$(echo "$TF_OUTPUT" | jq -r '.mongodb_vector_index_config.value.index_name')
+# Validate that Azure endpoints are available
+if [ -z "$AZURE_OPENAI_EMBEDDING_ENDPOINT" ] || [ "$AZURE_OPENAI_EMBEDDING_ENDPOINT" = "null" ]; then
+    echo "❌ Error: Azure OpenAI endpoints not available in Terraform outputs."
+    echo "   Please ensure 'terraform apply' completed successfully for Azure resources."
+    exit 1
+fi
 
-# Extract MongoDB credentials from .env file
-MONGODB_USERNAME=$(grep "^MONGODB_USERNAME" ../.env | cut -d'=' -f2- | tr -d '"')
-MONGODB_PASSWORD=$(grep "^MONGODB_PASSWORD" ../.env | cut -d'=' -f2- | tr -d '"')
+# Get Azure OpenAI API key from terraform output (required)
+AZURE_OPENAI_API_KEY=$(echo "$TF_OUTPUT" | jq -r '.azure_openai_api_key.value')
+if [ -z "$AZURE_OPENAI_API_KEY" ] || [ "$AZURE_OPENAI_API_KEY" = "null" ]; then
+    echo "❌ Error: Azure OpenAI API key not available in Terraform outputs."
+    echo "   Please ensure 'terraform apply' completed successfully for Azure resources."
+    exit 1
+fi
+
+# Extract deployment prefix for resource naming
+DEPLOYMENT_PREFIX=$(grep "^DEPLOYMENT_PREFIX=" ../.env 2>/dev/null | cut -d'=' -f2- | tr -d '"' || echo "flink-ai-demo")
+
+# Extract MongoDB variables (support both .env and .env-regional)
+ENV_FILE=""
+if [ -f "../.env-regional" ]; then
+    ENV_FILE="../.env-regional"
+elif [ -f "../.env" ]; then
+    ENV_FILE="../.env"
+fi
+
+if [ -n "$ENV_FILE" ]; then
+    MONGODB_CONNECTION_STRING=$(grep "^MONGODB_CONNECTION_STRING" "$ENV_FILE" | cut -d'=' -f2- | tr -d '"')
+    MONGODB_USERNAME=$(grep "^MONGODB_USERNAME" "$ENV_FILE" | cut -d'=' -f2- | tr -d '"')
+    MONGODB_PASSWORD=$(grep "^MONGODB_PASSWORD" "$ENV_FILE" | cut -d'=' -f2- | tr -d '"')
+else
+    echo "❌ Error: No environment file (.env or .env-regional) found."
+    echo "   Please create .env file with MongoDB credentials."
+    exit 1
+fi
+
+# MongoDB configuration (from terraform outputs)
+MONGODB_CLUSTER_NAME=$(echo "$TF_OUTPUT" | jq -r '.mongodb_cluster_name.value // "aimeetingcoach"')
+MONGODB_DATABASE="knowledge_db"
+MONGODB_COLLECTION="knowledge_embeddings"
+MONGODB_INDEX_NAME="vector_search_index"
 
 # Extract environment and cluster names from Terraform outputs
 ENVIRONMENT_NAME=$(echo "$TF_OUTPUT" | jq -r '.environment_name.value')
 KAFKA_CLUSTER_NAME=$(echo "$TF_OUTPUT" | jq -r '.kafka_cluster_name.value')
+
+# Extract Azure region from environment or fallback
+AZURE_REGION=$(grep "^AZURE_REGION=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || echo "eastus2")
 
 # If outputs are empty, try terraform.tfvars as fallback
 if [ -z "$ENVIRONMENT_NAME" ] || [ "$ENVIRONMENT_NAME" = "null" ]; then
@@ -75,20 +118,24 @@ if [ -z "$KAFKA_CLUSTER_NAME" ] || [ "$KAFKA_CLUSTER_NAME" = "null" ]; then
     fi
 fi
 if [ -z "$MONGODB_USERNAME" ]; then
-    MONGODB_USERNAME="<your-mongodb-username>"
+    echo "❌ Error: MongoDB username not found in environment files."
+    echo "   Please set MONGODB_USERNAME in your .env file."
+    exit 1
 fi
 if [ -z "$MONGODB_PASSWORD" ]; then
-    MONGODB_PASSWORD="<your-mongodb-password>"
+    echo "❌ Error: MongoDB password not found in environment files."
+    echo "   Please set MONGODB_PASSWORD in your .env file."
+    exit 1
 fi
 
-# Extract region from tfvars
-AZURE_REGION=$(grep "azure_location" terraform.tfvars | cut -d'"' -f2)
+# Extract region from tfvars or env-regional as fallback
+AZURE_REGION=$(grep "azure_location" terraform.tfvars 2>/dev/null | cut -d'"' -f2)
+if [ -z "$AZURE_REGION" ]; then
+    AZURE_REGION=$(grep "^AZURE_REGION" .env-regional | cut -d'=' -f2- | tr -d '"')
+fi
 
-# Parse OpenAI resource name from endpoint
-AZURE_OPENAI_RESOURCE=$(echo "$AZURE_OPENAI_ENDPOINT" | sed 's|https://||' | sed 's|\.openai\.azure\.com/||')
-
-# Parse MongoDB cluster from connection string
-MONGODB_CLUSTER=$(echo "$MONGODB_CONNECTION_STRING" | sed 's|mongodb+srv://||' | cut -d'.' -f1)
+# Extract resource names for display purposes only (not used for URL construction)
+AZURE_OPENAI_RESOURCE=$(echo "$AZURE_OPENAI_ENDPOINT" | sed 's|https://||' | sed 's|\.openai\.azure\.com.*||')
 
 echo "✅ Variables extracted successfully!"
 echo "   Environment Name: $ENVIRONMENT_NAME"
@@ -126,8 +173,10 @@ Run these commands in your terminal to set up the environment:
 export AZURE_REGION="$AZURE_REGION"
 export CONFLUENT_ENV="$ENVIRONMENT_ID"
 export AZURE_OPENAI_RESOURCE="$AZURE_OPENAI_RESOURCE"
-export MONGODB_CLUSTER="$MONGODB_CLUSTER"
 export AZURE_OPENAI_API_KEY="$AZURE_OPENAI_API_KEY"
+export AZURE_OPENAI_EMBEDDING_ENDPOINT="$AZURE_OPENAI_EMBEDDING_ENDPOINT"
+export AZURE_OPENAI_GPT4_ENDPOINT="$AZURE_OPENAI_GPT4_ENDPOINT"
+export MONGODB_CONNECTION_STRING="$MONGODB_CONNECTION_STRING"
 export MONGODB_USERNAME="$MONGODB_USERNAME"
 export MONGODB_PASSWORD="$MONGODB_PASSWORD"
 \`\`\`
@@ -139,35 +188,19 @@ export MONGODB_PASSWORD="$MONGODB_PASSWORD"
 ### Step 2.1: Create Azure OpenAI Embedding Connection
 
 \`\`\`bash
-confluent flink connection create azure-openai-embedding-connection \\
-  --type azureopenai \\
-  --cloud azure \\
-  --region $AZURE_REGION \\
-  --endpoint "https://$AZURE_OPENAI_RESOURCE.openai.azure.com/openai/deployments/text-embedding-ada-002/embeddings?api-version=2023-05-15" \\
-  --api-key "$AZURE_OPENAI_API_KEY"
+confluent flink connection create azure-openai-embedding-connection --type azureopenai --cloud azure --region \$AZURE_REGION --endpoint "\$AZURE_OPENAI_EMBEDDING_ENDPOINT" --api-key "\$AZURE_OPENAI_API_KEY" --environment \$CONFLUENT_ENV
 \`\`\`
 
 ### Step 2.2: Create Azure OpenAI GPT-4 Connection
 
 \`\`\`bash
-confluent flink connection create gpt-4-connection \\
-  --type azureopenai \\
-  --cloud azure \\
-  --region $AZURE_REGION \\
-  --endpoint "https://$AZURE_OPENAI_RESOURCE.openai.azure.com/openai/deployments/gpt-4/chat/completions?api-version=2024-02-01" \\
-  --api-key "$AZURE_OPENAI_API_KEY"
+confluent flink connection create gpt-4-connection --type azureopenai --cloud azure --region \$AZURE_REGION --endpoint "\$AZURE_OPENAI_GPT4_ENDPOINT" --api-key "\$AZURE_OPENAI_API_KEY" --environment \$CONFLUENT_ENV
 \`\`\`
 
 ### Step 2.3: Create MongoDB Connection
 
 \`\`\`bash
-confluent flink connection create mongodb-connection \\
-  --type mongodb \\
-  --cloud azure \\
-  --region $AZURE_REGION \\
-  --endpoint "$MONGODB_CONNECTION_STRING" \\
-  --username "\$MONGODB_USERNAME" \\
-  --password "\$MONGODB_PASSWORD"
+confluent flink connection create mongodb-connection --type mongodb --cloud azure --region \$AZURE_REGION --endpoint "\$MONGODB_CONNECTION_STRING" --username "\$MONGODB_USERNAME" --password "\$MONGODB_PASSWORD" --environment \$CONFLUENT_ENV
 \`\`\`
 
 ---
@@ -186,7 +219,7 @@ WITH(
   'azureopenai.connection' = 'azure-openai-embedding-connection',
   'azureopenai.input_format' = 'OPENAI-EMBED',
   'provider' = 'azureopenai',
-  'task' = 'classification'
+  'task' = 'embedding'
 );
 \`\`\`
 
@@ -317,6 +350,7 @@ FROM
     LATERAL TABLE(VECTOR_SEARCH(
         \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.knowledge_mongodb,
         3,
+        DESCRIPTOR(embedding),
         qe.embedding
     )) AS vs;
 \`\`\`

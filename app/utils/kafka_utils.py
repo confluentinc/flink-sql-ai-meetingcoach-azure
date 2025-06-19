@@ -7,29 +7,149 @@ import os
 import uuid
 import socket
 import threading
+import subprocess
+from pathlib import Path
 from confluent_kafka import Producer, Consumer, KafkaError
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer, AvroDeserializer
 from confluent_kafka.serialization import SerializationContext, MessageField
 
-# Global variables for Kafka configuration
-BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS')
-SCHEMA_REGISTRY_URL = os.getenv('SCHEMA_REGISTRY_URL')
-SASL_USERNAME = os.getenv('KAFKA_API_KEY')
-SASL_PASSWORD = os.getenv('KAFKA_API_SECRET')
-SR_API_KEY = os.getenv('SCHEMA_REGISTRY_API_KEY')
-SR_API_SECRET = os.getenv('SCHEMA_REGISTRY_API_SECRET')
+def load_credentials_from_tfstate():
+    """Load Kafka and Schema Registry credentials from Terraform state file"""
+    # Look for terraform state file relative to the app directory
+    tfstate_path = Path(__file__).parent.parent.parent / 'terraform' / 'terraform.tfstate'
+
+    if not tfstate_path.exists():
+        print(f"Terraform state file not found at {tfstate_path}")
+        return {}
+
+    try:
+        with open(tfstate_path, 'r') as f:
+            tfstate = json.load(f)
+
+        credentials = {}
+
+        # Extract from terraform state outputs
+        outputs = tfstate.get('outputs', {})
+
+        # Extract environment info
+        if 'environment_id' in outputs:
+            credentials['environment_id'] = outputs['environment_id']['value']
+            print(f"Found environment ID: {credentials['environment_id']}")
+
+        # Extract Kafka credentials - prioritize OrganizationAdmin keys
+        if 'kafka_api_key_org_admin' in outputs:
+            credentials['kafka_api_key'] = outputs['kafka_api_key_org_admin']['value']
+            print(f"Found Kafka API key (OrganizationAdmin): {credentials['kafka_api_key']}")
+        elif 'kafka_api_key' in outputs:
+            credentials['kafka_api_key'] = outputs['kafka_api_key']['value']
+            print(f"Found Kafka API key (CloudClusterAdmin): {credentials['kafka_api_key']}")
+
+        if 'kafka_api_secret_org_admin' in outputs:
+            credentials['kafka_api_secret'] = outputs['kafka_api_secret_org_admin']['value']
+            print(f"Found Kafka API secret (OrganizationAdmin): ***")
+        elif 'kafka_api_secret' in outputs:
+            credentials['kafka_api_secret'] = outputs['kafka_api_secret']['value']
+            print(f"Found Kafka API secret (CloudClusterAdmin): ***")
+
+        if 'kafka_bootstrap_endpoint' in outputs:
+            bootstrap_endpoint = outputs['kafka_bootstrap_endpoint']['value']
+            if bootstrap_endpoint.startswith('SASL_SSL://'):
+                credentials['bootstrap_servers'] = bootstrap_endpoint[11:]  # Remove SASL_SSL:// prefix
+            else:
+                credentials['bootstrap_servers'] = bootstrap_endpoint
+            print(f"Found bootstrap servers: {credentials['bootstrap_servers']}")
+
+        # Extract Schema Registry credentials - check resources for new OrganizationAdmin keys
+        org_admin_sr_key = None
+        org_admin_sr_secret = None
+
+        # Check resources for the new OrganizationAdmin Schema Registry API key
+        for resource in tfstate.get('resources', []):
+            if (resource.get('type') == 'confluent_api_key' and
+                resource.get('name') == 'schema_registry_org_admin'):
+                instances = resource.get('instances', [])
+                for instance in instances:
+                    attributes = instance.get('attributes', {})
+                    if attributes.get('id') and attributes.get('secret'):
+                        org_admin_sr_key = attributes.get('id')
+                        org_admin_sr_secret = attributes.get('secret')
+                        print(f"Found Schema Registry API key (OrganizationAdmin from resources): {org_admin_sr_key}")
+                        break
+
+        # Prioritize OrganizationAdmin, then outputs, then fallback
+        if org_admin_sr_key and org_admin_sr_secret:
+            credentials['sr_api_key'] = org_admin_sr_key
+            credentials['sr_api_secret'] = org_admin_sr_secret
+            print(f"Using Schema Registry API key (OrganizationAdmin): {credentials['sr_api_key']}")
+        elif 'schema_registry_api_key_org_admin' in outputs:
+            credentials['sr_api_key'] = outputs['schema_registry_api_key_org_admin']['value']
+            credentials['sr_api_secret'] = outputs['schema_registry_api_secret_org_admin']['value']
+            print(f"Found Schema Registry API key (OrganizationAdmin): {credentials['sr_api_key']}")
+        elif 'schema_registry_api_key' in outputs:
+            credentials['sr_api_key'] = outputs['schema_registry_api_key']['value']
+            credentials['sr_api_secret'] = outputs['schema_registry_api_secret']['value']
+            print(f"Found Schema Registry API key (CloudClusterAdmin): {credentials['sr_api_key']}")
+
+        # Schema Registry URL can be in multiple output keys
+        for sr_url_key in ['schema_registry_url', 'schema_registry_endpoint']:
+            if sr_url_key in outputs:
+                credentials['schema_registry_url'] = outputs[sr_url_key]['value']
+                print(f"Found Schema Registry URL: {credentials['schema_registry_url']}")
+                break
+
+        # Also check resources section for Schema Registry info if not in outputs
+        if 'schema_registry_url' not in credentials:
+            for resource in tfstate.get('resources', []):
+                if resource.get('type') == 'confluent_schema_registry_cluster':
+                    instances = resource.get('instances', [])
+                    for instance in instances:
+                        attributes = instance.get('attributes', {})
+                        rest_endpoint = attributes.get('rest_endpoint')
+                        if rest_endpoint:
+                            credentials['schema_registry_url'] = rest_endpoint
+                            print(f"Found Schema Registry URL in resources: {credentials['schema_registry_url']}")
+                            break
+
+        return credentials
+
+    except Exception as e:
+        print(f"Error reading Terraform state: {e}")
+        return {}
+
+# Load credentials from Terraform state first, fallback to environment variables
+tf_credentials = load_credentials_from_tfstate()
+
+# Global variables for Kafka configuration - prioritize Terraform state, then system env
+BOOTSTRAP_SERVERS = tf_credentials.get('bootstrap_servers') or os.getenv('KAFKA_BOOTSTRAP_SERVERS')
+SCHEMA_REGISTRY_URL = tf_credentials.get('schema_registry_url') or os.getenv('SCHEMA_REGISTRY_URL')
+SASL_USERNAME = tf_credentials.get('kafka_api_key') or os.getenv('KAFKA_API_KEY')
+SASL_PASSWORD = tf_credentials.get('kafka_api_secret') or os.getenv('KAFKA_API_SECRET')
+SR_API_KEY = tf_credentials.get('sr_api_key') or os.getenv('SCHEMA_REGISTRY_API_KEY')
+SR_API_SECRET = tf_credentials.get('sr_api_secret') or os.getenv('SCHEMA_REGISTRY_API_SECRET')
+ENVIRONMENT_ID = tf_credentials.get('environment_id') or os.getenv('TF_VAR_environment_id')
+
+# Print configuration for debugging
+print(f"Using Kafka bootstrap servers: {BOOTSTRAP_SERVERS}")
+print(f"Using Schema Registry URL: {SCHEMA_REGISTRY_URL}")
+print(f"SASL Username: {SASL_USERNAME}")
+print(f"SASL Password: {'***' if SASL_PASSWORD else 'None'}")
+print(f"SR API Key: {SR_API_KEY}")
+print(f"SR API Secret: {'***' if SR_API_SECRET else 'None'}")
+print(f"Environment ID: {ENVIRONMENT_ID}")
 
 # Check if credentials are available
 if not all([BOOTSTRAP_SERVERS, SCHEMA_REGISTRY_URL, SASL_USERNAME, SASL_PASSWORD, SR_API_KEY, SR_API_SECRET]):
-    print("WARNING: Required Kafka credentials not found in environment variables.")
-    print("Please set the following environment variables:")
-    print("  - KAFKA_BOOTSTRAP_SERVERS")
-    print("  - SCHEMA_REGISTRY_URL")
-    print("  - KAFKA_API_KEY")
-    print("  - KAFKA_API_SECRET")
-    print("  - SCHEMA_REGISTRY_API_KEY")
-    print("  - SCHEMA_REGISTRY_API_SECRET")
+    print("WARNING: Required Kafka credentials not found.")
+    missing = []
+    if not BOOTSTRAP_SERVERS: missing.append("BOOTSTRAP_SERVERS")
+    if not SCHEMA_REGISTRY_URL: missing.append("SCHEMA_REGISTRY_URL")
+    if not SASL_USERNAME: missing.append("KAFKA_API_KEY")
+    if not SASL_PASSWORD: missing.append("KAFKA_API_SECRET")
+    if not SR_API_KEY: missing.append("SCHEMA_REGISTRY_API_KEY")
+    if not SR_API_SECRET: missing.append("SCHEMA_REGISTRY_API_SECRET")
+    print(f"Missing credentials: {missing}")
+    print("Credentials are automatically loaded from terraform/terraform.tfstate")
 
 # Kafka Topic Names
 INPUT_TOPIC = 'messages_prospect'
@@ -114,11 +234,18 @@ def send_to_kafka(message, speaker="prospect"):
             """
             print(f"Using fallback schema: {schema_str}")
 
-        # Create an Avro serializer
+        # Create an Avro serializer with no auto-registration
+        serializer_config = {
+            'auto.register.schemas': False,
+            'use.latest.version': True,
+            'normalize.schemas': False
+        }
+
         avro_serializer = AvroSerializer(
             schema_registry_client,
             schema_str,
-            lambda record, ctx: record  # Identity function
+            lambda record, ctx: record,  # Identity function
+            serializer_config
         )
 
         # Create the message with the right schema format
@@ -188,9 +315,14 @@ def consume_from_kafka(clients_set):
             print(f"Using fallback schema: {schema_str}")
 
         # Create an Avro deserializer
+        def dict_to_llm_response(obj, ctx):
+            """Convert deserialized dict back to object"""
+            return obj
+
         avro_deserializer = AvroDeserializer(
             schema_registry_client,
-            schema_str
+            schema_str,
+            dict_to_llm_response
         )
 
         # Main consumption loop
@@ -209,12 +341,6 @@ def consume_from_kafka(clients_set):
                     continue
 
             try:
-                # Deserialize the message
-                value = avro_deserializer(
-                    msg.value(),
-                    SerializationContext(OUTPUT_TOPIC, MessageField.VALUE)
-                )
-
                 print(f"Received raw message from Kafka topic {OUTPUT_TOPIC}: {msg.value()}")
 
                 # Deserialize the message

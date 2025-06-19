@@ -138,7 +138,14 @@ uv.lock
 UVData/*.bin
 # .pre-commit-config.yaml
 .secrets.baseline
+claude.md
+personalized_setup_commands.md
+.env-regional
+
 
 # Ignore standalone Kafka scripts
 app/python-publish-consume-kafka-scripts/
 terraform/generate_personalized_commands.sh
+
+# Archive directories
+terraform-archive-eastus/
