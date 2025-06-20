@@ -1,4 +1,4 @@
-# PyCharm IDE specific files
+# IDE specific files
 .idea/
 *.iml
 *.iws
@@ -6,45 +6,43 @@
 .idea_modules/
 out/
 atlassian-ide-plugin.xml
-
-# VS Code
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# Python virtual environments
-venv/
-env/
-ENV/
-.env
-.venv
-env.bak/
-venv.bak/
-
-# Python bytecode compiled files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-
-# Distribution / packaging
 dist/
 build/
 *.egg-info/
 *.egg
 
+# Python virtual environments
+venv/
+env/
+ENV/
+.venv
+env.bak/
+venv.bak/
+
+# Environment files and secrets
+.env
+.env-regional
+*config.ini
+secrets.yaml
+credentials.json
+.secrets.baseline
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Logs
-logs/
-*.log
-log/
-
-# Unit test / coverage reports
+# Testing and coverage
 htmlcov/
 .tox/
 .coverage
@@ -57,21 +55,12 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
-# Flink specific
-.flink/
-.flink-yarn-tests/
+# Logs
+logs/
+*.log
+log/
 
-# Azure related
-.azure/
-*.publishsettings
-orleans.codegen.cs
-ServiceFabricBackup/
-*.rptproj.bak
-*.azurePubxml
-*.pubxml
-.deployment
-
-# ML model related
+# ML model files
 *.h5
 *.pkl
 *.model
@@ -80,22 +69,14 @@ ServiceFabricBackup/
 *.pth
 models/
 
-# Local data
+# Data files
 data/
 *.csv
 *.json
 *.xlsx
 *.parquet
 
-# Secrets and configurations
-*config.ini
-*.env
-secrets.yaml
-credentials.json
-.rooignore
-.pre-commit-config.yaml
-
-# Terraform - ignore sensitive files
+# Terraform
 *.tfstate
 *.tfstate.*
 *.tfvars
@@ -107,7 +88,7 @@ terraform.lock.hcl
 .terraformrc
 terraform.rc
 
-# Ignore only secret-related files inside the terraform/ directory
+# Terraform directory specific
 terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/*.tfvars
@@ -121,7 +102,30 @@ terraform/.terraform/
 !terraform/*.sh
 !terraform/*.yml
 
-# OS-specific
+# Cloud platform specific
+.azure/
+*.publishsettings
+orleans.codegen.cs
+ServiceFabricBackup/
+*.rptproj.bak
+*.azurePubxml
+*.pubxml
+.deployment
+
+# Flink specific
+.flink/
+.flink-yarn-tests/
+
+# Development tools
+.pre-commit-config.yaml
+.rooignore
+uv.lock
+*.uv.bak
+*.uvtemp
+*.uvcache
+UVData/*.bin
+
+# OS specific
 .DS_Store
 .DS_Store?
 ._*
@@ -130,20 +134,9 @@ terraform/.terraform/
 ehthumbs.db
 Thumbs.db
 
-# UV related files
-*.uv.bak
-*.uvtemp
-*.uvcache
-uv.lock
-UVData/*.bin
-# .pre-commit-config.yaml
-.secrets.baseline
+# Project specific
 claude.md
 personalized_setup_commands.md
-.env-regional
-
-
-# Ignore standalone Kafka scripts
 app/python-publish-consume-kafka-scripts/
 terraform/generate_personalized_commands.sh
 

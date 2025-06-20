@@ -233,7 +233,29 @@ WITH(
   'provider' = 'azureopenai',
   'task' = 'text_generation',
   'azureopenai.connection' = 'gpt-4-connection',
-  'azureopenai.model_version' = 'gpt-4'
+  'azureopenai.model_version' = 'gpt-4',
+  'azureopenai.system_prompt' = 'You are an expert sales coach AI. Provide actionable sales guidance formatted as JSON.
+
+## OUTPUT REQUIREMENTS:
+1. Create a JSON response with these fields:
+  - suggested_response: A concise, actionable talking point (75 words max)
+  - sources: An array with 3 objects (one for each document) containing:
+    * document_index: The document number (1, 2, or 3)
+    * document_id: The full document ID as provided
+    * title: Just the filename extracted from document_id
+    * path: Just the directory path extracted from document_id
+    * full_text: The complete document text
+    * used_excerpt: Exact text you used from this document (or empty if unused)
+  - reasoning: Brief explanation of your suggestion (25 words max)
+
+2. For each document:
+  - Extract the filename from the document_id (Example: from objection_response_playbooks/pricing_objection_playbook.md, extract pricing_objection_playbook.md)
+  - Extract the directory path if present (Example: from objection_response_playbooks/pricing_objection_playbook.md, extract objection_response_playbooks/)
+  - Include only the exact text passages you used to form your response in used_excerpt
+
+3. Always include all 3 documents in your response, even if you did not use them all.
+
+4. Ensure your response is valid JSON that can be automatically parsed.'
 );
 \`\`\`
 
@@ -287,10 +309,10 @@ CREATE TABLE \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.knowledge_mongodb (
 
 ## 5. 🔄 Create Document Processing Pipeline
 
-### Step 5.1: Create Chunked and Embedded Knowledge
+### Step 5.1: Populate Chunked and Embedded Knowledge
 
 \`\`\`sql
-CREATE TABLE \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.knowledge_embeddings_chunked AS
+INSERT INTO \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.knowledge_embeddings_chunked
 WITH chunked_texts AS (
   SELECT
     document_id,
@@ -312,6 +334,8 @@ LATERAL TABLE(
   ML_PREDICT('openaiembed', chunks)
 );
 \`\`\`
+
+<!-- NOTE: The table structure is now created by Terraform, so this is an INSERT INTO operation -->
 
 ---
 
@@ -344,7 +368,12 @@ CREATE TABLE \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.messages_prospect_rag
 SELECT
     qe.message,
     qe.speaker,
-    vs.search_results AS rag_results
+    -- Transform the array with named fields to exclude embeddings
+    ARRAY[
+        CAST(ROW(vs.search_results[1].document_id, vs.search_results[1].chunks) AS ROW<document_id STRING, chunks STRING>),
+        CAST(ROW(vs.search_results[2].document_id, vs.search_results[2].chunks) AS ROW<document_id STRING, chunks STRING>),
+        CAST(ROW(vs.search_results[3].document_id, vs.search_results[3].chunks) AS ROW<document_id STRING, chunks STRING>)
+    ] AS rag_results
 FROM
     \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.messages_prospect_embeddings AS qe,
     LATERAL TABLE(VECTOR_SEARCH(
@@ -355,12 +384,55 @@ FROM
     )) AS vs;
 \`\`\`
 
+<!-- OLD VERSION (commented out until new version is confirmed working)
+\`\`\`sql
+CREATE TABLE \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.messages_prospect_rag_results AS
+SELECT
+    qe.message,
+    qe.speaker,
+    vs.search_results AS rag_results
+FROM
+    \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.messages_prospect_embeddings AS qe,
+    LATERAL TABLE(VECTOR_SEARCH(
+        \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.knowledge_mongodb,
+        3,
+        DESCRIPTOR(embedding),
+        qe.embedding
+    )) AS vs;
+\`\`\`
+-->
+
 ---
 
 ## 7. 🎯 Create Response Generation Pipeline
 
 ### Step 7.1: Create Final LLM Response Table
 
+\`\`\`sql
+CREATE TABLE \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.messages_prospect_rag_llm_response AS
+SELECT
+    qr.message,
+    CAST(qr.rag_results AS STRING) AS rag_results_string,
+    pred.coaching_response
+FROM \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.messages_prospect_rag_results qr,
+LATERAL TABLE(
+    ml_predict(
+        'coaching_response_generator',
+        CONCAT(
+            '## PROSPECT MESSAGE: ', qr.message,
+            '\\n\\n## RAG DOCUMENTS:\\n',
+            'Document 1: ', qr.rag_results[1].document_id, '\\n',
+            qr.rag_results[1].chunks, '\\n\\n',
+            'Document 2: ', qr.rag_results[2].document_id, '\\n',
+            qr.rag_results[2].chunks, '\\n\\n',
+            'Document 3: ', qr.rag_results[3].document_id, '\\n',
+            qr.rag_results[3].chunks
+        )
+    )
+) AS pred;
+\`\`\`
+
+<!-- OLD VERSION (commented out until new version is confirmed working)
 \`\`\`sql
 CREATE TABLE \`$ENVIRONMENT_NAME\`.\`$KAFKA_CLUSTER_NAME\`.messages_prospect_rag_llm_response AS
 SELECT
@@ -405,6 +477,7 @@ LATERAL TABLE(
     )
 ) AS pred;
 \`\`\`
+-->
 
 ---
 

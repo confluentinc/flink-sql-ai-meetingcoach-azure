@@ -6,14 +6,27 @@ import os
 import csv
 import pathlib
 
+def verbose_print(message):
+    """Print message only if verbose mode is enabled"""
+    try:
+        from app import VERBOSE_MODE
+        if VERBOSE_MODE:
+            print(message)
+    except ImportError:
+        # Fallback if VERBOSE_MODE not available
+        print(message)
+
 # Global cache for messages
 message_cache = {}
 
 # Get the absolute path to the CSV file
 def get_cache_file_path():
-    # Get the root project directory (parent of app directory)
-    root_dir = pathlib.Path(__file__).parent.parent.parent.absolute()
-    return os.path.join(root_dir, 'static/cached.csv')
+    # Get the app directory and create data subdirectory
+    app_dir = pathlib.Path(__file__).parent.parent.absolute()
+    data_dir = os.path.join(app_dir, 'data')
+    # Ensure data directory exists
+    os.makedirs(data_dir, exist_ok=True)
+    return os.path.join(data_dir, 'cached.csv')
 
 # Function to load cache from CSV
 def load_cache():
@@ -27,7 +40,7 @@ def load_cache():
 
         # Check if file exists first
         if not os.path.exists(csv_file_path):
-            print(f"{csv_file_path} not found. Creating empty file.")
+            verbose_print(f"{csv_file_path} not found. Creating empty file.")
             # Create the file with headers
             with open(csv_file_path, mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
@@ -36,7 +49,7 @@ def load_cache():
 
         # Check if file is empty
         if os.path.getsize(csv_file_path) == 0:
-            print(f"{csv_file_path} is empty. Adding headers.")
+            verbose_print(f"{csv_file_path} is empty. Adding headers.")
             with open(csv_file_path, mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
                 writer.writerow(['Message', 'Response', 'Reasoning', 'Used Excerpts', 'RAG sources'])
@@ -61,9 +74,9 @@ def load_cache():
                     # Store the entire sanitized row data
                     message_cache[sanitized_row['Message']] = sanitized_row
 
-            print(f"Loaded {len(message_cache)} items into cache.")
+            verbose_print(f"Loaded {len(message_cache)} items into cache.")
     except Exception as e:
-        print(f"Error loading cache from {csv_file_path}: {e}")
+        verbose_print(f"Error loading cache from {csv_file_path}: {e}")
         # Initialize empty cache to prevent further errors
         message_cache = {}
 
@@ -110,12 +123,12 @@ def add_to_cache(question, response, reasoning='', used_excerpts='', rag_sources
 
         # Add to message_cache with Message as the key
         message_cache[question] = cached_item
-        print(f"Appended to {csv_file_path} and updated cache: {question}")
+        verbose_print(f"Appended to {csv_file_path} and updated cache: {question}")
 
         return True, cached_item
 
     except Exception as e:
-        print(f"Error adding to cache file {csv_file_path}: {e}")
+        verbose_print(f"Error adding to cache file {csv_file_path}: {e}")
         return False, str(e)
 
 def delete_from_cache(index):

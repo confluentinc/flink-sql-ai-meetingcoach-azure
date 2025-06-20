@@ -554,6 +554,42 @@ data "mongodbatlas_cluster" "existing" {
 #   }
 # }
 
+# 19. Create knowledge_embeddings_chunked table structure
+resource "confluent_flink_statement" "knowledge_embeddings_chunked_table" {
+  organization {
+    id = var.organization_id
+  }
+
+  environment {
+    id = confluent_environment.main.id
+  }
+
+  compute_pool {
+    id = confluent_flink_compute_pool.main.id
+  }
+
+  principal {
+    id = confluent_service_account.flink.id
+  }
+
+  statement  = "CREATE TABLE `${var.environment_name}`.`${var.kafka_cluster_name}`.knowledge_embeddings_chunked (document_id STRING, chunks STRING, embedding ARRAY<FLOAT>);"
+  properties = {
+    "sql.current-catalog"  = var.environment_name
+    "sql.current-database" = var.kafka_cluster_name
+  }
+
+  rest_endpoint = confluent_flink_compute_pool.main.rest_endpoint
+
+  credentials {
+    key    = confluent_api_key.flink.id
+    secret = confluent_api_key.flink.secret
+  }
+
+  depends_on = [
+    confluent_role_binding.flink-developer
+  ]
+}
+
 # 20. MongoDB Sink Connector for Knowledge Embeddings - Using existing cluster
 resource "confluent_connector" "mongodb_sink" {
   environment {
@@ -593,7 +629,8 @@ resource "confluent_connector" "mongodb_sink" {
   }
 
   depends_on = [
-    confluent_role_binding.app-kafka-admin
+    confluent_role_binding.app-kafka-admin,
+    confluent_flink_statement.knowledge_embeddings_chunked_table
   ]
 }
 

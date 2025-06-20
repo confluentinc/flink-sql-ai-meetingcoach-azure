@@ -2,6 +2,7 @@ anyio==4.9.0
 attrs==25.3.0
 authlib==1.5.2
 avro==1.12.0
+avro-python3==1.10.2
 blinker==1.9.0
 cachetools==5.5.2
 certifi==2025.1.31
@@ -21,6 +22,7 @@ idna==3.10
 itsdangerous==2.2.0
 jinja2==3.1.6
 markupsafe==3.0.2
+pip==25.0.1
 pycparser==2.22
 python-dotenv==1.1.0
 requests==2.32.3
