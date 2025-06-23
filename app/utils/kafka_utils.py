@@ -7,33 +7,167 @@ import os
 import uuid
 import socket
 import threading
+import subprocess
+import hashlib
+import time
+from pathlib import Path
 from confluent_kafka import Producer, Consumer, KafkaError
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer, AvroDeserializer
 from confluent_kafka.serialization import SerializationContext, MessageField
 
-# Global variables for Kafka configuration
-BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS')
-SCHEMA_REGISTRY_URL = os.getenv('SCHEMA_REGISTRY_URL')
-SASL_USERNAME = os.getenv('KAFKA_API_KEY')
-SASL_PASSWORD = os.getenv('KAFKA_API_SECRET')
-SR_API_KEY = os.getenv('SCHEMA_REGISTRY_API_KEY')
-SR_API_SECRET = os.getenv('SCHEMA_REGISTRY_API_SECRET')
+def verbose_print(message):
+    """Print message only if verbose mode is enabled"""
+    try:
+        from app import VERBOSE_MODE
+        if VERBOSE_MODE:
+            print(message)
+    except ImportError:
+        # Fallback if VERBOSE_MODE not available
+        print(message)
+
+def load_credentials_from_tfstate():
+    """Load Kafka and Schema Registry credentials from Terraform state file"""
+    # Look for terraform state file relative to the app directory
+    tfstate_path = Path(__file__).parent.parent.parent / 'terraform' / 'terraform.tfstate'
+
+    if not tfstate_path.exists():
+        print(f"Terraform state file not found at {tfstate_path}")
+        return {}
+
+    try:
+        with open(tfstate_path, 'r') as f:
+            tfstate = json.load(f)
+
+        credentials = {}
+
+        # Extract from terraform state outputs
+        outputs = tfstate.get('outputs', {})
+
+        # Extract environment info
+        if 'environment_id' in outputs:
+            credentials['environment_id'] = outputs['environment_id']['value']
+
+        # Extract Kafka credentials - prioritize OrganizationAdmin keys
+        if 'kafka_api_key_org_admin' in outputs:
+            credentials['kafka_api_key'] = outputs['kafka_api_key_org_admin']['value']
+        elif 'kafka_api_key' in outputs:
+            credentials['kafka_api_key'] = outputs['kafka_api_key']['value']
+
+        if 'kafka_api_secret_org_admin' in outputs:
+            credentials['kafka_api_secret'] = outputs['kafka_api_secret_org_admin']['value']
+        elif 'kafka_api_secret' in outputs:
+            credentials['kafka_api_secret'] = outputs['kafka_api_secret']['value']
+
+        if 'kafka_bootstrap_endpoint' in outputs:
+            bootstrap_endpoint = outputs['kafka_bootstrap_endpoint']['value']
+            if bootstrap_endpoint.startswith('SASL_SSL://'):
+                credentials['bootstrap_servers'] = bootstrap_endpoint[11:]  # Remove SASL_SSL:// prefix
+            else:
+                credentials['bootstrap_servers'] = bootstrap_endpoint
+
+        # Extract Schema Registry credentials - check resources for new OrganizationAdmin keys
+        org_admin_sr_key = None
+        org_admin_sr_secret = None
+
+        # Check resources for the new OrganizationAdmin Schema Registry API key
+        for resource in tfstate.get('resources', []):
+            if (resource.get('type') == 'confluent_api_key' and
+                resource.get('name') == 'schema_registry_org_admin'):
+                instances = resource.get('instances', [])
+                for instance in instances:
+                    attributes = instance.get('attributes', {})
+                    if attributes.get('id') and attributes.get('secret'):
+                        org_admin_sr_key = attributes.get('id')
+                        org_admin_sr_secret = attributes.get('secret')
+                        print(f"Found Schema Registry API key (OrganizationAdmin from resources): {org_admin_sr_key}")
+                        break
+
+        # Prioritize OrganizationAdmin, then outputs, then fallback
+        if org_admin_sr_key and org_admin_sr_secret:
+            credentials['sr_api_key'] = org_admin_sr_key
+            credentials['sr_api_secret'] = org_admin_sr_secret
+            print(f"Using Schema Registry API key (OrganizationAdmin): {credentials['sr_api_key']}")
+        elif 'schema_registry_api_key_org_admin' in outputs:
+            credentials['sr_api_key'] = outputs['schema_registry_api_key_org_admin']['value']
+            credentials['sr_api_secret'] = outputs['schema_registry_api_secret_org_admin']['value']
+            print(f"Found Schema Registry API key (OrganizationAdmin): {credentials['sr_api_key']}")
+        elif 'schema_registry_api_key' in outputs:
+            credentials['sr_api_key'] = outputs['schema_registry_api_key']['value']
+            credentials['sr_api_secret'] = outputs['schema_registry_api_secret']['value']
+            print(f"Found Schema Registry API key (CloudClusterAdmin): {credentials['sr_api_key']}")
+
+        # Schema Registry URL can be in multiple output keys
+        for sr_url_key in ['schema_registry_url', 'schema_registry_endpoint']:
+            if sr_url_key in outputs:
+                credentials['schema_registry_url'] = outputs[sr_url_key]['value']
+                print(f"Found Schema Registry URL: {credentials['schema_registry_url']}")
+                break
+
+        # Also check resources section for Schema Registry info if not in outputs
+        if 'schema_registry_url' not in credentials:
+            for resource in tfstate.get('resources', []):
+                if resource.get('type') == 'confluent_schema_registry_cluster':
+                    instances = resource.get('instances', [])
+                    for instance in instances:
+                        attributes = instance.get('attributes', {})
+                        rest_endpoint = attributes.get('rest_endpoint')
+                        if rest_endpoint:
+                            credentials['schema_registry_url'] = rest_endpoint
+                            print(f"Found Schema Registry URL in resources: {credentials['schema_registry_url']}")
+                            break
+
+        return credentials
+
+    except Exception as e:
+        print(f"Error reading Terraform state: {e}")
+        return {}
+
+# Load credentials from Terraform state first, fallback to environment variables
+tf_credentials = load_credentials_from_tfstate()
+
+# Global variables for Kafka configuration - prioritize Terraform state, then system env
+BOOTSTRAP_SERVERS = tf_credentials.get('bootstrap_servers') or os.getenv('KAFKA_BOOTSTRAP_SERVERS')
+SCHEMA_REGISTRY_URL = tf_credentials.get('schema_registry_url') or os.getenv('SCHEMA_REGISTRY_URL')
+SASL_USERNAME = tf_credentials.get('kafka_api_key') or os.getenv('KAFKA_API_KEY')
+SASL_PASSWORD = tf_credentials.get('kafka_api_secret') or os.getenv('KAFKA_API_SECRET')
+SR_API_KEY = tf_credentials.get('sr_api_key') or os.getenv('SCHEMA_REGISTRY_API_KEY')
+SR_API_SECRET = tf_credentials.get('sr_api_secret') or os.getenv('SCHEMA_REGISTRY_API_SECRET')
+ENVIRONMENT_ID = tf_credentials.get('environment_id') or os.getenv('TF_VAR_environment_id')
+
+# Print configuration for debugging (verbose only)
+verbose_print(f"Using Kafka bootstrap servers: {BOOTSTRAP_SERVERS}")
+verbose_print(f"Using Schema Registry URL: {SCHEMA_REGISTRY_URL}")
+verbose_print(f"SASL Username: {SASL_USERNAME}")
+verbose_print(f"SASL Password: {'***' if SASL_PASSWORD else 'None'}")
+verbose_print(f"SR API Key: {SR_API_KEY}")
+verbose_print(f"SR API Secret: {'***' if SR_API_SECRET else 'None'}")
+verbose_print(f"Environment ID: {ENVIRONMENT_ID}")
 
 # Check if credentials are available
 if not all([BOOTSTRAP_SERVERS, SCHEMA_REGISTRY_URL, SASL_USERNAME, SASL_PASSWORD, SR_API_KEY, SR_API_SECRET]):
-    print("WARNING: Required Kafka credentials not found in environment variables.")
-    print("Please set the following environment variables:")
-    print("  - KAFKA_BOOTSTRAP_SERVERS")
-    print("  - SCHEMA_REGISTRY_URL")
-    print("  - KAFKA_API_KEY")
-    print("  - KAFKA_API_SECRET")
-    print("  - SCHEMA_REGISTRY_API_KEY")
-    print("  - SCHEMA_REGISTRY_API_SECRET")
+    print("WARNING: Required Kafka credentials not found.")
+    missing = []
+    if not BOOTSTRAP_SERVERS: missing.append("BOOTSTRAP_SERVERS")
+    if not SCHEMA_REGISTRY_URL: missing.append("SCHEMA_REGISTRY_URL")
+    if not SASL_USERNAME: missing.append("KAFKA_API_KEY")
+    if not SASL_PASSWORD: missing.append("KAFKA_API_SECRET")
+    if not SR_API_KEY: missing.append("SCHEMA_REGISTRY_API_KEY")
+    if not SR_API_SECRET: missing.append("SCHEMA_REGISTRY_API_SECRET")
+    print(f"Missing credentials: {missing}")
+    print("Credentials are automatically loaded from terraform/terraform.tfstate")
 
 # Kafka Topic Names
 INPUT_TOPIC = 'messages_prospect'
 OUTPUT_TOPIC = 'messages_prospect_rag_llm_response'
+
+# Get log level based on verbose mode
+def get_kafka_log_level():
+    try:
+        from app import VERBOSE_MODE
+        return 6 if VERBOSE_MODE else 0  # 6 = INFO level, 0 = no logging
+    except ImportError:
+        return 0
 
 # Kafka producer configuration
 producer_config = {
@@ -42,7 +176,8 @@ producer_config = {
     'sasl.mechanisms': 'PLAIN',
     'sasl.username': SASL_USERNAME,
     'sasl.password': SASL_PASSWORD,
-    'client.id': f'python-producer-{socket.gethostname()}'
+    'client.id': f'python-producer-{socket.gethostname()}',
+    'log_level': get_kafka_log_level()
 }
 
 # Kafka consumer configuration
@@ -52,11 +187,12 @@ consumer_config = {
     'sasl.mechanisms': 'PLAIN',
     'sasl.username': SASL_USERNAME,
     'sasl.password': SASL_PASSWORD,
-    'group.id': f'meeting-coach-consumer-{uuid.uuid4()}',
+    'group.id': 'meeting-coach-consumer-group',
     'auto.offset.reset': 'latest',
     'enable.auto.commit': True,
     'client.id': f'python-consumer-{socket.gethostname()}',
-    'isolation.level': 'read_uncommitted'
+    'isolation.level': 'read_uncommitted',
+    'log_level': get_kafka_log_level()
 }
 
 # Schema registry configuration
@@ -69,11 +205,54 @@ schema_registry_conf = {
 producer = None
 consumer_running = True
 
+# Message deduplication tracking
+processed_messages = {}  # {message_hash: timestamp}
+DEDUP_TTL_SECONDS = 300  # 5 minutes TTL for processed messages
+
+def generate_message_hash(message_content):
+    """Generate a hash for message deduplication based on input message content"""
+    if not message_content:
+        return None
+    # Create hash from the input message content
+    return hashlib.md5(message_content.encode('utf-8')).hexdigest()
+
+def is_message_duplicate(message_hash):
+    """Check if message has been processed recently"""
+    if not message_hash:
+        return False
+
+    current_time = time.time()
+
+    # Clean up expired entries
+    cleanup_expired_messages(current_time)
+
+    # Check if this message hash exists and is still valid
+    if message_hash in processed_messages:
+        verbose_print(f"🔄 Duplicate message detected, skipping: {message_hash[:8]}...")
+        return True
+
+    # Mark this message as processed
+    processed_messages[message_hash] = current_time
+    return False
+
+def cleanup_expired_messages(current_time):
+    """Remove expired message hashes from tracking"""
+    expired_hashes = [
+        msg_hash for msg_hash, timestamp in processed_messages.items()
+        if current_time - timestamp > DEDUP_TTL_SECONDS
+    ]
+
+    for msg_hash in expired_hashes:
+        del processed_messages[msg_hash]
+
+    if expired_hashes:
+        verbose_print(f"🧹 Cleaned up {len(expired_hashes)} expired message hashes")
+
 # Initialize Kafka
 def initialize_kafka():
     global producer
     producer = Producer(producer_config)
-    print("Kafka producer initialized")
+    print("📤 Kafka producer initialized")
     return producer
 
 # Callback for message delivery reports
@@ -114,11 +293,18 @@ def send_to_kafka(message, speaker="prospect"):
             """
             print(f"Using fallback schema: {schema_str}")
 
-        # Create an Avro serializer
+        # Create an Avro serializer with no auto-registration
+        serializer_config = {
+            'auto.register.schemas': False,
+            'use.latest.version': True,
+            'normalize.schemas': False
+        }
+
         avro_serializer = AvroSerializer(
             schema_registry_client,
             schema_str,
-            lambda record, ctx: record  # Identity function
+            lambda record, ctx: record,  # Identity function
+            serializer_config
         )
 
         # Create the message with the right schema format
@@ -160,7 +346,7 @@ def consume_from_kafka(clients_set):
 
         # Subscribe to the output topic
         consumer.subscribe([OUTPUT_TOPIC])
-        print(f"Consumer subscribed to {OUTPUT_TOPIC}")
+        print(f"📡 Consumer subscribed to {OUTPUT_TOPIC}")
 
         # Create a schema registry client
         schema_registry_client = SchemaRegistryClient(schema_registry_conf)
@@ -169,9 +355,9 @@ def consume_from_kafka(clients_set):
         try:
             schema_metadata = schema_registry_client.get_latest_version(f"{OUTPUT_TOPIC}-value")
             schema_str = schema_metadata.schema.schema_str
-            print(f"Retrieved schema from Schema Registry: {schema_str}")
+            verbose_print(f"Retrieved schema from Schema Registry: {schema_str}")
         except Exception as e:
-            print(f"Error retrieving schema from Schema Registry: {e}")
+            verbose_print(f"Error retrieving schema from Schema Registry: {e}")
             # Fallback to a default schema
             schema_str = """
             {
@@ -185,12 +371,17 @@ def consume_from_kafka(clients_set):
                 ]
             }
             """
-            print(f"Using fallback schema: {schema_str}")
+            verbose_print(f"Using fallback schema: {schema_str}")
 
         # Create an Avro deserializer
+        def dict_to_llm_response(obj, ctx):
+            """Convert deserialized dict back to object"""
+            return obj
+
         avro_deserializer = AvroDeserializer(
             schema_registry_client,
-            schema_str
+            schema_str,
+            dict_to_llm_response
         )
 
         # Main consumption loop
@@ -209,13 +400,7 @@ def consume_from_kafka(clients_set):
                     continue
 
             try:
-                # Deserialize the message
-                value = avro_deserializer(
-                    msg.value(),
-                    SerializationContext(OUTPUT_TOPIC, MessageField.VALUE)
-                )
-
-                print(f"Received raw message from Kafka topic {OUTPUT_TOPIC}: {msg.value()}")
+                verbose_print(f"Received raw message from Kafka topic {OUTPUT_TOPIC}: {msg.value()}")
 
                 # Deserialize the message
                 value = avro_deserializer(
@@ -223,32 +408,41 @@ def consume_from_kafka(clients_set):
                     SerializationContext(OUTPUT_TOPIC, MessageField.VALUE)
                 )
 
-                print(f"Deserialized message: {value}")
+                verbose_print(f"Deserialized message: {value}")
 
                 if not value:
-                    print("Deserialized value is empty or null, skipping broadcast.")
+                    verbose_print("Deserialized value is empty or null, skipping broadcast.")
+                    continue
+
+                # Check for duplicate messages based on input message content
+                input_message = value.get('message', '')
+                message_hash = generate_message_hash(input_message)
+
+                if is_message_duplicate(message_hash):
+                    verbose_print("Skipping duplicate message broadcast")
                     continue
 
                 # Prepare data for sending (ensure it's JSON serializable)
                 try:
                     json_payload = json.dumps(value)
-                    print(f"Broadcasting to {len(clients_set)} WebSocket clients: {json_payload}")
+                    verbose_print(f"Broadcasting to {len(clients_set)} WebSocket clients: {json_payload}")
                 except TypeError as te:
                     print(f"Error: Cannot serialize message to JSON: {te}")
-                    print(f"Problematic value: {value}")
+                    verbose_print(f"Problematic value: {value}")
                     continue # Skip broadcasting if serialization fails
 
                 # Broadcast to all connected WebSocket clients
                 active_clients = clients_set.copy()
                 if not active_clients:
-                    print("No active WebSocket clients to broadcast to.")
+                    verbose_print("No active WebSocket clients to broadcast to.")
 
                 for client in active_clients:
                     try:
                         client.send(json_payload)
-                        print(f"Successfully sent message to client {client}")
+                        print(f"✅ Coaching response delivered to client")
+                        verbose_print(f"Successfully sent message to client {client}")
                     except Exception as e:
-                        print(f"Error sending to WebSocket client {client}: {e}")
+                        verbose_print(f"Error sending to WebSocket client {client}: {e}")
                         clients_set.discard(client) # Remove potentially broken client
             except Exception as e:
                 print(f"Error processing message: {e}")
@@ -265,7 +459,7 @@ def start_kafka_consumer(clients_set):
     consumer_thread = threading.Thread(target=consume_from_kafka, args=(clients_set,))
     consumer_thread.daemon = True
     consumer_thread.start()
-    print("Kafka consumer thread started")
+    print("📥 Kafka consumer thread started")
     return consumer_thread
 
 def shutdown_kafka():

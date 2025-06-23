@@ -4,7 +4,7 @@ API routes for the Meeting Coach application
 
 from flask import jsonify, request
 
-from app import app
+from app import app, verbose_print
 from app.utils.data_utils import generate_coaching_advice
 from app.utils.kafka_utils import send_to_kafka
 from app.utils.cache_utils import load_cache, message_cache
@@ -33,12 +33,12 @@ def send_message():
 
     # Check cache first
     if message in message_cache:
-        print(f"Returning cached response for: {message}")
+        verbose_print(f"Returning cached response for: {message}")
         # Return the full cached data structure
         cached_data = message_cache[message]
         return jsonify({"status": "cached", "coaching_response": cached_data["Response"], "full_data": cached_data})
     else:
-        print(f"Message not in cache, sending to Kafka: {message}")
+        print(f"📤 Message not in cache, sending to Kafka: {message}")
         result = send_to_kafka(message, speaker="prospect")
         # Note: The response from Kafka will be handled by the WebSocket consumer
         # This endpoint just confirms the message was sent to Kafka
@@ -82,6 +82,6 @@ def cached_questions():
 
         return jsonify(questions_list)
     except Exception as e:
-        print(f"Error in cached_questions endpoint: {e}")
+        verbose_print(f"Error in cached_questions endpoint: {e}")
         # Return an empty list in case of error to prevent frontend from breaking
         return jsonify([])

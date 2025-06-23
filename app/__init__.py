@@ -10,18 +10,26 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_sock import Sock
 
+# Global verbose mode flag (set by command line argument)
+VERBOSE_MODE = False
+
+def verbose_print(message):
+    """Print message only if verbose mode is enabled"""
+    if VERBOSE_MODE:
+        print(message)
+
 # Load environment variables from .env file in the parent directory
 # Assumes .env is in the root project directory, one level up from 'app'
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path=dotenv_path)
-print(f"Attempted to load .env from: {dotenv_path}")
-print(f"KAFKA_API_KEY loaded: {os.getenv('KAFKA_API_KEY') is not None}")
-print(f"KAFKA_API_SECRET loaded: {os.getenv('KAFKA_API_SECRET') is not None}")
+verbose_print(f"Attempted to load .env from: {dotenv_path}")
+verbose_print(f"KAFKA_API_KEY loaded: {os.getenv('KAFKA_API_KEY') is not None}")
+verbose_print(f"KAFKA_API_SECRET loaded: {os.getenv('KAFKA_API_SECRET') is not None}")
 
 # Create Flask app instance
 app = Flask(__name__,
-            static_folder='../static',
-            template_folder='../templates')
+            static_folder='static',
+            template_folder='templates')
 sock = Sock(app)
 
 # Global active WebSocket clients

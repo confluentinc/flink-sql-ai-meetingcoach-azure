@@ -8,7 +8,7 @@ import json
 # Load meeting data
 def load_meeting_data():
     """Load the simulated meeting data from JSON file"""
-    meetings_dir = 'static'
+    meetings_dir = 'app/static'
     meeting_file = os.path.join(meetings_dir, 'meeting_scenario_1.json')
 
     with open(meeting_file, 'r') as f:
