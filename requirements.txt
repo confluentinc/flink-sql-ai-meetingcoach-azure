@@ -23,7 +23,7 @@ itsdangerous==2.2.0
 jinja2==3.1.6
 markupsafe==3.0.2
 pip==25.0.1
-pycparser==2.22
+pycparser==3.0
 python-dotenv==1.1.0
 requests==2.32.4
 setuptools==78.1.1
