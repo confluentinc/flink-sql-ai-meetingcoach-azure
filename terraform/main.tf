@@ -8,7 +8,7 @@ terraform {
     }
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.0"
+      version = "~> 5.0"
     }
     mongodbatlas = {
       source  = "mongodb/mongodbatlas"
